@@ -15,7 +15,7 @@
    :year-month
    :instant])
 
-(deftest datafy-roundtrip-tests
+(deftest datafy-tests
 
   (doseq [t test-keys]
 
