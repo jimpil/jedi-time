@@ -30,18 +30,23 @@
       )))
 
 (deftest nav-tests
-  (let [now (jdt/now! :as :zoned-datetime)]
+  (testing "roundtrip via :+/:-"
+      (doseq [t [:zoned-datetime
+                 :offset-datetime
+                 :local-datetime
+                 :local-date]]
+        (let [now (jdt/now! :as t)
+              datafied (jdt/datafy now)
+              modified (jdt/nav datafied :+ [1 :weeks])
+              modified-datafied (jdt/datafy modified)
+              modified-datafied-back (jdt/nav modified-datafied :- [1 :weeks])
+              modified-datafied-back-datafied (jdt/datafy modified-datafied-back)]
+          (is (= datafied modified-datafied-back-datafied)
+              (format "%s doesn't match!" t))
+          (is (= now (jdt/undatafy (strip-meta modified-datafied-back-datafied)))
+              (format "%s doesn't match!" t))))
 
-    (testing "roundtrip via :+/:-"
-      (let [datafied (jdt/datafy now)
-            modified (jdt/nav datafied :+ [1 :weeks])
-            modified-datafied (jdt/datafy modified)
-            modified-datafied-back (jdt/nav modified-datafied :- [1 :weeks])
-            modified-datafied-back-datafied (jdt/datafy modified-datafied-back)]
-        (is (= datafied modified-datafied-back-datafied))
-        (is (= now (jdt/undatafy (strip-meta modified-datafied-back-datafied))))))
-
-    ))
+      ))
 
 (deftest undatafy-tests
   (testing "undatafy slow path"
