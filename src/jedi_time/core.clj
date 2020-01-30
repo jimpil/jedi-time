@@ -68,9 +68,13 @@
                 (if (contains? x :day)
                   (internal/local-time-of x)
 
-                  (if (contains? x :year)
-                    (internal/year-month-of x)
-                    (Month/of (get-in x [:month :value]))))))))))))
+                  (if-let [i (get-in x [:week :day :value])]
+                    (DayOfWeek/of i)
+
+                    (if (contains? x :year)
+                      (internal/year-month-of x)
+
+                      (Month/of (get-in x [:month :value])))))))))))))
 
 (def redatafy
   "Composes `datafy` with`undatafy` (via `comp`).
