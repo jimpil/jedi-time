@@ -1,6 +1,6 @@
 # jedi-time
 
-![](https://cdn.imgbin.com/21/23/12/imgbin-luminara-unduli-jedi-chibi-drawing-yoda-chibi-cMDvGgmFR7pTHeXiRaAuB9Zfu.jpg)
+![](jedi.png)
 
 A tiny Clojure library designed to _complement_ the `java.time` API (introduced with Java 8).
 It exposes a handful of functions, and is mainly based on the `p/Datafiable` and `p/Navigable` protocols 
