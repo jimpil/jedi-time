@@ -13,11 +13,19 @@
            (java.time.temporal IsoFields Temporal)
            (java.math RoundingMode)))
 
-(def ^:dynamic invalid! (constantly nil))
+
+(defonce system-zone   (delay (ZoneId/systemDefault)))
+(defonce system-offset (delay (ZoneOffset/systemDefault)))
+
+(defn ^:dynamic invalid!
+  "Controls what happens when a key is not recognised.
+   Throws ex-info (by default), but can be dynamically rebound."
+  [k]
+  (throw (ex-info "Invalid argument!" (if (map? k) k {:key k}))))
 
 (defn- original-object
-  [datafied]  ;; `datafy` adds the original object in the metadata
-  (-> datafied meta :clojure.datafy/obj))
+  [datafied]  ;; `d/datafy` adds the original object in the metadata
+  (-> datafied meta ::d/obj))
 
 (defn- reconstruct-object
   [x]
@@ -55,7 +63,16 @@
                   (if-let [i (get-in x [:month :value])]
                     (Month/of i)
 
-                    (invalid! x)))))))))))
+                    (invalid! {:reconstruct x})))))))))))
+
+(defn- format*
+  ^String [fmt iso-variant ^Temporal obj]
+  (.format ^DateTimeFormatter
+           (if (or (nil? fmt)
+                   (= :iso fmt))
+             iso-variant
+             (parse/dt-formatter fmt))
+           obj))
 
 (defn undatafy
   "Looks up the `:clojure.datafy/obj` key in the metadata of <x>.
@@ -71,20 +88,6 @@
    Useful for re-obtaining `nav` capabilities
    if the metadata was lost (e.g by serialisation)."
   (comp d/datafy undatafy))
-
-(defonce system-zone
-  (delay (ZoneId/systemDefault)))
-
-(defonce system-offset
-  (delay (ZoneOffset/systemDefault)))
-
-(defn- format*
-  ^String [fmt iso-variant ^Temporal obj]
-  (.format ^DateTimeFormatter
-    (if (= :iso fmt)
-      iso-variant
-      (parse/dt-formatter fmt))
-    obj))
 
 (extend-protocol p/Datafiable
 
@@ -115,10 +118,11 @@
            (case k
              :before? (.isBefore ym (undatafy v))
              :after?  (.isAfter  ym (undatafy v))
-             :to      (when (= :instant v)
+             :to      (if (= :instant v)
                         (-> (.atDay ym 1)
                             (.atStartOfDay)
-                            (.toInstant (or (parse/zone-offset v) @system-offset))))
+                            (.toInstant (or (parse/zone-offset v) @system-offset)))
+                        (invalid! v))
              :format  (format* (or v "yyyy-MM") nil ym)
              :+       (let [[n unit] v] (internal/safe-plus :date ym unit n))
              :-       (let [[n unit] v] (internal/safe-minus :date ym unit n))
@@ -150,7 +154,7 @@
           ym      (YearMonth/of (.getYear ld) (.getMonth ld))
           ret     (merge (d/datafy weekday)
                          (-> (d/datafy ym)
-                             (assoc-in [:year :week]       (.get ld IsoFields/WEEK_OF_WEEK_BASED_YEAR))
+                             (assoc-in [:year :week] (.get ld IsoFields/WEEK_OF_WEEK_BASED_YEAR))
                              (assoc-in [:year :month :day] (.getDayOfMonth ld))))]
       (with-meta ret
         {`p/nav
@@ -175,7 +179,7 @@
     (let [lt  (.toLocalTime ldt)
           ld  (.toLocalDate ldt)
           ret (-> (merge-with merge (d/datafy lt) (d/datafy ld))
-                  (assoc-in [:year :day]  (.getDayOfYear  ldt)))]
+                  (assoc-in [:year :day] (.getDayOfYear  ldt)))]
       (with-meta ret
         {`p/nav
          (fn [_ k v]
@@ -217,7 +221,8 @@
              :at-offset (let [[offid mode] v]
                           (case (or mode :same-instant)
                             :same-instant (.withOffsetSameInstant odt (or (parse/zone-offset offid) @system-offset))
-                            :same-local   (.withOffsetSameLocal   odt (or (parse/zone-offset offid) @system-offset))))
+                            :same-local   (.withOffsetSameLocal   odt (or (parse/zone-offset offid) @system-offset))
+                            (invalid! mode)))
              :format    (format* v DateTimeFormatter/ISO_OFFSET_DATE_TIME odt)
              :julian    (internal/julian-field odt v)
              :+         (let [[n unit] v] (internal/safe-plus :date odt unit n))
@@ -243,7 +248,8 @@
              :at-zone (let [[zid mode] v]
                         (case (or mode :same-instant)
                           :same-instant (.withZoneSameInstant zdt (or (parse/zone-id zid) @system-zone))
-                          :same-local   (.withZoneSameLocal   zdt (or (parse/zone-id zid) @system-zone))))
+                          :same-local   (.withZoneSameLocal   zdt (or (parse/zone-id zid) @system-zone))
+                          (invalid! mode)))
              :format  (format* v DateTimeFormatter/ISO_ZONED_DATE_TIME zdt)
              :julian  (internal/julian-field zdt v)
              :+       (let [[n unit] v] (internal/safe-plus :date zdt unit n))

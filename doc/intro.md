@@ -227,10 +227,14 @@ A datafied instance of the same or similar type (e.g. `ZonedDateTime` vs `Offset
 ### :at-zone
 
 An instance of `ZoneId`, or a String describing one (defaults to system zone).
+In the case of an `ZonedDateTime`, it should be a 2-element vector, with the aforementioned zone-id as the first element,
+and `:same-instant` (default) or `:same-local`, as the second.
 
 ### :at-offset
 
 An instance of `ZoneOffset`, or a String describing one (defaults to system offset).
+In the case of an `OffsetDateTime`, it should be a 2-element vector, with the aforementioned offset-id as the first element,
+and `:same-instant` (default) or `:same-local`, as the second.
 
 ### :julian (returns Julian fields) 
 One of the following keywords:
