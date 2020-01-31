@@ -13,6 +13,7 @@
            (java.time.temporal IsoFields Temporal)
            (java.math RoundingMode)))
 
+(def ^:dynamic invalid! (constantly nil))
 
 (defn- original-object
   [datafied]  ;; `datafy` adds the original object in the metadata
@@ -51,7 +52,10 @@
                 (if (contains? x :year)
                   (internal/year-month-of x)
 
-                  (Month/of (get-in x [:month :value])))))))))))
+                  (if-let [i (get-in x [:month :value])]
+                    (Month/of i)
+
+                    (invalid! x)))))))))))
 
 (defn undatafy
   "Looks up the `:clojure.datafy/obj` key in the metadata of <x>.
@@ -118,7 +122,7 @@
              :format  (format* (or v "yyyy-MM") nil ym)
              :+       (let [[n unit] v] (internal/safe-plus :date ym unit n))
              :-       (let [[n unit] v] (internal/safe-minus :date ym unit n))
-             nil))})))
+             (invalid! k)))})))
 
   LocalTime
   (datafy [lt]
@@ -138,7 +142,7 @@
              :format  (format* v DateTimeFormatter/ISO_LOCAL_TIME lt)
              :+       (let [[n unit] v] (internal/safe-plus :time  lt unit n))
              :-       (let [[n unit] v] (internal/safe-minus :time lt unit n))
-             nil))})))
+             (invalid! k)))})))
 
   LocalDate
   (datafy [ld]
@@ -163,8 +167,8 @@
                                      (.toInstant (or (parse/zone-offset v) @system-offset)))
                         :week-day weekday
                         :year-month ym
-                        nil)
-             nil))})))
+                        (invalid! v))
+             (invalid! k)))})))
 
   LocalDateTime
   (datafy [ldt]
@@ -187,12 +191,11 @@
              :to        (case v
                           :local-time lt
                           :local-date ld
-                          :instant (.toInstant ldt @system-offset)
-                          (when (and (sequential? v)
-                                     (= :instant (first v)))
-                            (.toInstant ldt (or (some-> (second v) parse/zone-offset)
-                                                @system-offset))))
-             nil))})))
+                          (if (and (sequential? v)
+                                   (= :instant (first v)))
+                            (.toInstant ldt (or (some-> (second v) parse/zone-offset) @system-offset))
+                            (invalid! v)))
+             (invalid! k)))})))
 
   OffsetDateTime
   (datafy [odt]
@@ -222,8 +225,8 @@
              :to        (case v
                           :local-datetime ldt
                           :instant (.toInstant odt)
-                          nil)
-             nil))})))
+                          (invalid! v))
+             (invalid! k)))})))
 
   ZonedDateTime
   (datafy [zdt]
@@ -249,8 +252,8 @@
                         :offset-datetime odt
                         :local-datetime (.toLocalDateTime zdt)
                         :instant        (.toInstant odt)
-                        nil)
-             nil))})))
+                        (invalid! v))
+             (invalid! k)))})))
 
   Instant
   ;; a count of nanoseconds since the epoch of the first moment of 1970 in UTC
@@ -281,8 +284,8 @@
                           :local-datetime  (LocalDateTime/ofInstant  inst  (or (parse/zone-id z) @system-zone))
                           :offset-datetime (OffsetDateTime/ofInstant inst  (or (parse/zone-id z) @system-zone))
                           :zoned-datetime  (ZonedDateTime/ofInstant  inst  (or (parse/zone-id z) @system-zone))
-                          nil))
-             nil))})))
+                          (invalid! v)))
+             (invalid! k)))})))
   )
 
 (defn now!
@@ -302,4 +305,4 @@
     :local-datetime  (internal/now-variant LocalDateTime clock zone-id)
     :offset-datetime (internal/now-variant OffsetDateTime clock zone-id)
     :zoned-datetime  (internal/now-variant ZonedDateTime clock zone-id)
-    (internal/throw-illegal-representation! as)))
+    (invalid! as)))

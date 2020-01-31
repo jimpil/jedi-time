@@ -4,23 +4,6 @@
            (java.time.temporal Temporal TemporalUnit TemporalAccessor JulianFields TemporalAmount)
            (java.time LocalDateTime LocalDate LocalTime YearMonth Period Duration)))
 
-(defonce representations
-  #{:instant
-    :year-month
-    :local-time
-    :local-date
-    :local-datetime
-    :zoned-datetime
-    :offset-datetime})
-
-(defmacro throw-illegal-representation!
-  [r]
-  `(throw
-     (IllegalArgumentException.
-       (format "Unknown representation [%s]! Must be one of %s"
-               ~r jedi-time.internal/representations))))
-
-
 (defmacro now-variant
   [klass clock zone]
   `(cond
@@ -101,8 +84,3 @@
   (YearMonth/of
     ^int (get-in x [:year :value])
     ^int (get-in x [:year :month :value])))
-
-
-
-
-
