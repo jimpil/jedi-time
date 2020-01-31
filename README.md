@@ -26,9 +26,8 @@ and you can use it to pull out the value from the datafied  using `get-in` (see 
 
 ### jedi-time.core
 
-The majority of the functionality is provided in the **`jedi-time.core`** namespace. 
-Loading/requiring it automatically extends `clojure.core/protocols/Datafiable` to the following 9 
-`java.time` types:
+The majority of the functionality is provided in the core namespace. 
+Loading/requiring it automatically extends `clojure.core.protocols/Datafiable` to the following 9 `java.time` types:
 
 1. Month
 2. DayOfWeek 
