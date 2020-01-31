@@ -46,7 +46,8 @@ However, navigation can take us places, so if you like travelling buckle on. ;)
 
 ### jedi-time.core/datafy
 
-Ok, so you have a `java.time` object - what can you do with it? The obvious thing is to turn it into data.
+Ok, so you have a `java.time` object - what can you do with it? The obvious thing is to turn it into data 
+(see the [intro](doc/intro.md) for an exhaustive list).
 
 ```clj
 (require '[jedi-time.core :as jdt])         ;; first things first
@@ -83,7 +84,7 @@ This is the object represented as data.
 This alone, opens up a world of opportunities, but wait there is more...
 
 Given the above data representation, we can navigate to a bunch of things 
-(see INTRO.MD for an exhaustive list):
+(see the [intro](doc/intro.md) for an exhaustive list):
 
 ```clj
 (let [datafied (jdt/datafy (jdt/now! :as :zoned-datetime))] 
