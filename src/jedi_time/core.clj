@@ -1,85 +1,72 @@
 (ns jedi-time.core
   "A datafiable/navigable view of the core `java.time` objects."
-  (:require [jedi-time
-             [internal  :as internal]
-             [protocols :as p]
-             [parse     :as parse]])
+  (:require [clojure.core.protocols :as p]
+            [clojure.datafy :as d]
+            [jedi-time
+             [internal :as internal]
+             [parse    :as parse]])
   (:import (java.time YearMonth Month DayOfWeek Instant
                       LocalTime LocalDate LocalDateTime
                       ZonedDateTime OffsetDateTime
                       ZoneOffset ZoneId Clock)
            (java.time.format DateTimeFormatter)
            (java.time.temporal IsoFields Temporal)
-           (java.math RoundingMode)
-           (clojure.lang IObj)))
+           (java.math RoundingMode)))
 
-(defn datafy
-  "Mirroring `clojure.datafy/datafy`."
-  [x]
-  (let [v (p/datafy x)]
-    (if (identical? v x)
-      v
-      (if (instance? IObj v)
-        (vary-meta v assoc
-                   ::obj x
-                   ::class (-> x class .getName symbol))
-        v))))
-
-(defn nav
-  "Mirroring `clojure.datafy/nav`."
-  [coll k v]
-  (p/nav coll k v))
 
 (defn- original-object
   [datafied]  ;; `datafy` adds the original object in the metadata
-  (-> datafied meta ::obj))
+  (-> datafied meta :clojure.datafy/obj))
+
+(defn- reconstruct-object
+  [x]
+  (if-let [epoch (:epoch x)]
+    (let [nano-of-second (-> x :second :nano)
+          second (:second epoch)]
+      (Instant/ofEpochSecond second nano-of-second))
+
+    (if-let [zone-id (get-in x [:zone :id])]
+      (ZonedDateTime/ofStrict
+        (internal/local-datetime-of x)
+        (ZoneOffset/of (get-in x [:offset :id]))
+        (ZoneId/of zone-id))
+
+      (if-let [offset-id (get-in x [:offset :id])]
+        (OffsetDateTime/of
+          (internal/local-datetime-of x)
+          (ZoneOffset/of offset-id))
+
+        (if-let [year-day (get-in x [:year :day])]
+          (internal/local-datetime-of x)
+
+          (if-let [year-week (get-in x [:year :week])]
+            (internal/local-date-of x)
+
+            (if (contains? x :day)
+              (internal/local-time-of x)
+
+              (if-let [i (get-in x [:week :day :value])]
+                (DayOfWeek/of i)
+
+                (if (contains? x :year)
+                  (internal/year-month-of x)
+
+                  (Month/of (get-in x [:month :value])))))))))))
 
 (defn undatafy
-  "Looks up the `::obj` key in the metadata of <x>.
+  "Looks up the `:clojure.datafy/obj` key in the metadata of <x>.
    If that fails, reconstructs the appropriate temporal object from scratch
    (assuming keys per the result of `datafy`)."
   ^Temporal [x]
   (when (some? x)
-    (or
-      (original-object x)
-
-      (if-let [epoch (:epoch x)]
-        (let [nano-of-second (-> x :second :nano)
-              second (:second epoch)]
-          (Instant/ofEpochSecond second nano-of-second))
-
-        (if-let [zone-id (get-in x [:zone :id])]
-          (ZonedDateTime/ofStrict
-            (internal/local-datetime-of x)
-            (ZoneOffset/of (get-in x [:offset :id]))
-            (ZoneId/of zone-id))
-
-          (if-let [offset-id (get-in x [:offset :id])]
-            (OffsetDateTime/of
-              (internal/local-datetime-of x)
-              (ZoneOffset/of offset-id))
-
-            (if-let [year-day (get-in x [:year :day])]
-              (internal/local-datetime-of x)
-
-              (if-let [year-week (get-in x [:year :week])]
-                (internal/local-date-of x)
-
-                (if (contains? x :day)
-                  (internal/local-time-of x)
-
-                  (if-let [i (get-in x [:week :day :value])]
-                    (DayOfWeek/of i)
-
-                    (if (contains? x :year)
-                      (internal/year-month-of x)
-
-                      (Month/of (get-in x [:month :value])))))))))))))
+    (or (original-object x)
+        (reconstruct-object x))))
 
 (def redatafy
   "Composes `datafy` with`undatafy` (via `comp`).
-   Useful for re-obtaining nav capabilities the metadata lost (e.g by serialisation)."
-  (comp datafy undatafy))
+   Useful for re-obtaining nav capabilities
+   if the metadata was lost (e.g by serialisation)."
+  (comp d/datafy undatafy))
 
 (defonce system-zone
   (delay (ZoneId/systemDefault)))
@@ -103,7 +90,7 @@
 
   YearMonth
   (datafy [ym]
-    (let [month (-> (datafy (.getMonth ym))
+    (let [month (-> (d/datafy (.getMonth ym))
                     ;; correct the length here
                     (assoc-in [:month :length] (.lengthOfMonth ym)))]
       (with-meta
@@ -152,8 +139,8 @@
     (let [weekday (.getDayOfWeek ld)
           ym      (YearMonth/of (.getYear ld) (.getMonth ld))]
       (with-meta
-        (merge (datafy weekday)
-               (-> (datafy ym)
+        (merge (d/datafy weekday)
+               (-> (d/datafy ym)
                    (assoc-in [:year :week]       (.get ld IsoFields/WEEK_OF_WEEK_BASED_YEAR))
                    (assoc-in [:year :month :day] (.getDayOfMonth ld))))
 
@@ -170,7 +157,7 @@
                                     (.toInstant (or (parse/zone-offset v) @system-offset)))
                     :+          (let [[n unit] v] (internal/safe-plus :date  ld unit n))
                     :-          (let [[n unit] v] (internal/safe-minus :date ld unit n))
-                    :weekday    weekday
+                    :week-day   weekday
                     :year-month ym
                     nil))})))
 
@@ -179,7 +166,7 @@
     (let [lt (.toLocalTime ldt)
           ld (.toLocalDate ldt)]
       (with-meta
-        (-> (merge-with merge (datafy lt) (datafy ld))
+        (-> (merge-with merge (d/datafy lt) (d/datafy ld))
             (assoc-in [:year :day]  (.getDayOfYear  ldt)))
 
         {`p/nav (fn [_ k v]
@@ -208,7 +195,7 @@
           offset      (.getOffset odt)
           off-seconds (.getTotalSeconds offset)]
       (with-meta
-        (-> (datafy ldt)
+        (-> (d/datafy ldt)
             (assoc :offset {:id      (.getId offset)
                             :seconds off-seconds
                             :hours   (with-precision 3
@@ -239,7 +226,7 @@
     (let [odt  (.toOffsetDateTime zdt)
           zone (.getZone zdt)]
       (with-meta
-        (-> (datafy odt)
+        (-> (d/datafy odt)
             (assoc-in [:zone :id] (.getId zone)))
 
         {`p/nav (fn [_ k v]

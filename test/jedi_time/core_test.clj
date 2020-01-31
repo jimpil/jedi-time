@@ -1,5 +1,6 @@
 (ns jedi-time.core-test
   (:require [clojure.test :refer :all]
+            [clojure.datafy :as d]
             [jedi-time.core :as jdt]))
 
 (defn- strip-meta
@@ -20,7 +21,7 @@
   (doseq [t test-keys]
 
     (let [now      (jdt/now! :as t)
-          datafied (jdt/datafy now)
+          datafied (d/datafy now)
           datafied-no-meta (strip-meta datafied)]
 
       (is (= now
@@ -36,16 +37,15 @@
                  :local-datetime
                  :local-date]]
         (let [now (jdt/now! :as t)
-              datafied (jdt/datafy now)
-              modified (jdt/nav datafied :+ [1 :weeks])
-              modified-datafied (jdt/datafy modified)
-              modified-datafied-back (jdt/nav modified-datafied :- [1 :weeks])
-              modified-datafied-back-datafied (jdt/datafy modified-datafied-back)]
+              datafied (d/datafy now)
+              modified (d/nav datafied :+ [1 :weeks])
+              modified-datafied (d/datafy modified)
+              modified-datafied-back (d/nav modified-datafied :- [1 :weeks])
+              modified-datafied-back-datafied (d/datafy modified-datafied-back)]
           (is (= datafied modified-datafied-back-datafied)
               (format "%s doesn't match!" t))
           (is (= now (jdt/undatafy (strip-meta modified-datafied-back-datafied)))
               (format "%s doesn't match!" t))))
-
       ))
 
 (deftest undatafy-tests
@@ -53,7 +53,11 @@
     (let [month {:month {:name "MARCH"
                          :value 3
                          :length 31}}
-          dates (map #(strip-meta (jdt/datafy (jdt/now! :as %))) test-keys)]
+          dates (map
+                  #(-> (jdt/now! :as %)
+                       d/datafy
+                       strip-meta)
+                  test-keys)]
 
       (doseq [d (cons month dates)]
         (is (= d (jdt/redatafy d))
