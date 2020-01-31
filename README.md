@@ -50,9 +50,10 @@ Ok, so you have a `java.time` object - what can you do with it? The obvious thin
 (see the [intro](doc/intro.md) for an exhaustive list).
 
 ```clj
-(require '[jedi-time.core :as jdt])         ;; first things first
+(require '[jedi-time.core :as jdt]
+         '[clojure.datafy :as d])   ;; first things first
 
-(jdt/datafy (jdt/now! :as :zoned-datetime)) ;; datafy an instance of ZonedDateTime
+(d/datafy (jdt/now! :as :zoned-datetime)) ;; datafy an instance of ZonedDateTime
 => 
 {:day  {:hour 20},               ;; hour of day
  :hour {:minute 9},              ;; minute of hour
@@ -87,22 +88,22 @@ Given the above data representation, we can navigate to a bunch of things
 (see the [intro](doc/intro.md) for an exhaustive list):
 
 ```clj
-(let [datafied (jdt/datafy (jdt/now! :as :zoned-datetime))] 
+(let [datafied (d/datafy (jdt/now! :as :zoned-datetime))] 
   
-  (jdt/nav datafied :format :iso)       =>  "2020-01-29T08:37:31.737789Z[Europe/London]"
-  (jdt/nav datafied :format "yy-MM-dd") =>  "20-01-29"
-  (jdt/nav datafied :to :instant)       =>  #object[java.time.Instant 0x19ca0015 "2020-01-29T08:37:31.737789Z"]
+  (d/nav datafied :format :iso)       =>  "2020-01-29T08:37:31.737789Z[Europe/London]"
+  (d/nav datafied :format "yy-MM-dd") =>  "20-01-29"
+  (d/nav datafied :to :instant)       =>  #object[java.time.Instant 0x19ca0015 "2020-01-29T08:37:31.737789Z"]
 )
 ```
 You can navigate to some (chronologically) modified, or alternate version (where supported).
 
 ```clj
-(jdt/nav datafied :+ [3 :hours])
-(jdt/nav datafied :- [2 :days]) ;; will correctly use Period (as opposed to Duration)
+(d/nav datafied :+ [3 :hours])
+(d/nav datafied :- [2 :days]) ;; will correctly use Period (as opposed to Duration)
 
 ;;this may promote the types
-(jdt/nav datafied :at-zone   ["Europe/London" :same-instant])
-(jdt/nav datafied :at-offset ["+01:00"        :same-local])  
+(d/nav datafied :at-zone   ["Europe/London" :same-instant])
+(d/nav datafied :at-offset ["+01:00"        :same-local])  
 ```
 
 You can navigate to any direct parents (e.g. :local-time + :local-date => local-datetime) 
@@ -110,28 +111,28 @@ of the datafied object, except from a datafied `Instant` which can be navigated 
 
 ```clj
 
-(let [datafied (jdt/datafy (jdt/now! :as :offset-datetime))] 
+(let [datafied (d/datafy (jdt/now! :as :offset-datetime))] 
   (-> datafied  
-     (jdt/nav :to :local-datetime) ;; => #object[java.time.LocalDateTime 0x7363452f "2020-01-29T10:15:21.399461"]
-     jdt/datafy
-     (jdt/nav :to :local-date)     ;; => #object[java.time.LocalDate 0x167f1c41 "2020-01-29"]
-     jdt/datafy 
-     (jdt/nav :to :year-month)     ;; => #object[java.time.YearMonth 0x9a9de2f "2020-01"]
+     (d/nav :to :local-datetime) ;; => #object[java.time.LocalDateTime 0x7363452f "2020-01-29T10:15:21.399461"]
+     d/datafy
+     (d/nav :to :local-date)     ;; => #object[java.time.LocalDate 0x167f1c41 "2020-01-29"]
+     d/datafy 
+     (d/nav :to :year-month)     ;; => #object[java.time.YearMonth 0x9a9de2f "2020-01"]
     )
 )
 
 ```
 
-If calling `jdt/nav` returns a Java object, it is going to be one of the aforementioned 9 objects, and so it can be datafied. 
+If calling `d/nav` returns a Java object, it is going to be one of the aforementioned 9 objects, and so it can be datafied. 
 This whole datafy/nav dance basically creates a graph structure.   
 
 
 #### jedi-time.core/undatafy 
 
-As the name implies, `undatafy` is the opposite of `datafy`.
-It can take any Clojure map (not necessarily the direct result of `datafy`), 
+As the name implies, `jdt/undatafy` is the opposite of `d/datafy`.
+It can take any Clojure map (not necessarily the direct result of `d/datafy`), 
 and turn it into the correct `java.time` object. Therefore, you don't need to worry about losing 
-the metadata carried by the result of `datafy` (which conveniently includes the original object).
+the metadata carried by the result of `d/datafy` (which conveniently includes the original object).
 
 #### jedi-time.core/redatafy 
 
@@ -156,9 +157,9 @@ and `Navigable` have been mirrored in `jedi-time.protocols`.
 
 - These protocols have been extended to the main 9 types in `java.time`.
 
-- `(jdt/datafy x)` turns those 9 types into Clojure maps, and `jdt/undatafy` turns those (or meta-less mirrors of them) back into the right Java object.
+- `(d/datafy x)` turns those 9 types into Clojure maps, and `jdt/undatafy` turns those (or meta-less mirrors of them) back into the right Java object.
 
-- These maps can be navigated (via `jdt/nav`) in ways that reflect the semantics of the underlying Java objects (e.g formatting, comparing, shifting etc).  
+- These maps can be navigated (via `d/nav`) in ways that reflect the semantics of the underlying Java objects (e.g formatting, comparing, shifting etc).  
 
 - Some parsing helpers exist in `jedi-time.parse`.
 
