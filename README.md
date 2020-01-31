@@ -20,14 +20,14 @@ the conventions/idioms introduced are sound and are consistently followed, and g
 ## Convention
 Temporal fields are hierarchical, and so in Java the naming convention follows the `bar-of-foo` pattern (e.g Chrono/ISO fields etc).
 In `jedi-time`, `bar-of-foo` becomes path `[:foo :bar]`. For instance `ChronoField/DAY_OF_YEAR` becomes `[:year :day]`, 
-and you can use it to pull out the value from the datafied object using `get-in` (see below). 
+and you can use it to pull out the value from the datafied  using `get-in` (see below). 
 
 ## Usage
 
 ### jedi-time.core
 
 The majority of the functionality is provided in the **`jedi-time.core`** namespace. 
-Loading/requiring it automatically extends the `jedi-time.protocols/Datafiable` protocol to the following 9 
+Loading/requiring it automatically extends `clojure.core/protocols/Datafiable` to the following 9 
 `java.time` types:
 
 1. Month
@@ -40,11 +40,9 @@ Loading/requiring it automatically extends the `jedi-time.protocols/Datafiable` 
 8. ZonedDateTime
 9. Instant
 
-All `Datafiable` implementations return a `jedi-tim.protocols/Navigable` map. 
+All datafied implementations return a `clojure.core.protocols/Navigable` map. 
 You can think of it as a plain Clojure map if you only care about the raw data. 
 However, navigation can take us places, so if you like travelling buckle on. ;) 
-
-### jedi-time.core/datafy
 
 Ok, so you have a `java.time` object - what can you do with it? The obvious thing is to turn it into data 
 (see the [intro](doc/intro.md) for an exhaustive list).
@@ -136,7 +134,7 @@ the metadata carried by the result of `d/datafy` (which conveniently includes th
 
 #### jedi-time.core/redatafy 
 
-The composition of `undatafy` and `datafy`. Useful for re-obtaining `nav` capabilities on a datafied (but meta-less) map.  
+The composition of `jdt/undatafy` and `d/datafy`. Useful for re-obtaining `d/nav` capabilities on a meta-less mirror of something datafied.  
 
 
 ### jedi-time.parse
@@ -152,10 +150,7 @@ each taking one (String) or two (String, DateTimeFormatter) args.
 
 ## TL;DR 
 
-- I don't own any of the protocols in `clojure.core.protocols`, nor any of the `java.time` types, so both `Datafiable` 
-and `Navigable` have been mirrored in `jedi-time.protocols`.
-
-- These protocols have been extended to the main 9 types in `java.time`.
+- `clojure.core/Datafiable` has been extended to the main 9 types in `java.time`.
 
 - `(d/datafy x)` turns those 9 types into Clojure maps, and `jdt/undatafy` turns those (or meta-less mirrors of them) back into the right Java object.
 
