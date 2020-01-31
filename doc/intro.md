@@ -263,5 +263,8 @@ A two-element vector. First element is expected to be a positive integer, follow
 - :eras 
 
 ### :to
+//TODO: 
 
-
+## Invalid arguments
+How `jedi-time` reacts to keys/values it doesn't recognise (passed mainly to `d/nav`), is controlled by the dynamic Var `jedi-time.core/invalid!`.
+By default it throws an `ex-info`, but feel free to re-bind it, or `alter-var-root` it as you see fit  - e.g. `(constantly nil)`.  
