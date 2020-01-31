@@ -215,9 +215,9 @@ keys mentioned earlier, **except**  `:at-zone`, `:at-offset` and `:julian`.
 
 This section documents the last argument to `nav` (given that the first two args were explained in the previous section).
 
-### :format (returns String)
+### :format (returns a String)
 
-- anything other than a datafied `YearMonth` - the keyword `:iso` (default), a `DateTimeFormatter` instance, or a String pattern 
+- anything other than a datafied `YearMonth` - the keyword `:iso` (default), a `DateTimeFormatter` instance, or a `String` pattern 
 - a datafied `YearMonth` - a `DateTimeFormatter` instance, or a `String` pattern (defaults to "yyyy-MM")
 
 ### :before?/:after? (return true/false)
@@ -232,14 +232,14 @@ An instance of `ZoneId`, or a String describing one (defaults to system zone).
 
 An instance of `ZoneOffset`, or a String describing one (defaults to system offset).
 
-### :julian
+### :julian (returns Julian fields) 
 One of the following keywords:
 
 - :day 
 - :modified-day
 - :rata-die
 
-### :+/:-
+### :+/:- (returns a shifted version of the same type)
 A two-element vector. First element is expected to be a positive integer, followed by one of the following keywords:
 
 - :nanos
