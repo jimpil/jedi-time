@@ -4,13 +4,15 @@ We will look at each `java.time` class separately, showing what map it datafies 
 
 ## datafy and nav keys
 
-The full set of `nav` keys supported are the following ():
+The full set of `nav` keys supported are the following:
 
 - :format 
 - :before? 
 - :after?
 - :to
 - :julian
+- :at-zone
+- :at-offset
 - :+ 
 - :-
 
@@ -57,8 +59,6 @@ The returned map (representing a `YearMonth`) can now be navigated to the follow
 - :before? 
 - :after?
 - :to
-- :at-zone
-- :at-offset
 - :+ 
 - :-
 
