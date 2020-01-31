@@ -4,7 +4,7 @@
 
 A tiny Clojure library designed to _complement_ the `java.time` API (introduced with Java 8).
 It exposes a handful of functions, and is mainly based on the `p/Datafiable` and `p/Navigable` protocols 
-(introduced with Clojure 1.10, and _mirrored_ here).
+(introduced with Clojure 1.10).
 
 ## Premise 
 `java.time` is a piece of art. The API is well thought out, its classes are immutable, its methods well named, 
@@ -90,7 +90,7 @@ Given the above data representation, we can navigate to a bunch of things
   
   (jdt/nav datafied :format :iso)       =>  "2020-01-29T08:37:31.737789Z[Europe/London]"
   (jdt/nav datafied :format "yy-MM-dd") =>  "20-01-29"
-  (jdt/nav datafied :instant nil)       =>  #object[java.time.Instant 0x19ca0015 "2020-01-29T08:37:31.737789Z"]
+  (jdt/nav datafied :to :instant)       =>  #object[java.time.Instant 0x19ca0015 "2020-01-29T08:37:31.737789Z"]
 )
 ```
 You can navigate to some (chronologically) modified, or alternate version (where supported).
@@ -111,11 +111,11 @@ of the datafied object, except from a datafied `Instant` which can be navigated 
 
 (let [datafied (jdt/datafy (jdt/now! :as :offset-datetime))] 
   (-> datafied  
-     (jdt/nav :local-datetime nil) ;; => #object[java.time.LocalDateTime 0x7363452f "2020-01-29T10:15:21.399461"]
+     (jdt/nav :to :local-datetime) ;; => #object[java.time.LocalDateTime 0x7363452f "2020-01-29T10:15:21.399461"]
      jdt/datafy
-     (jdt/nav :local-date nil)     ;; => #object[java.time.LocalDate 0x167f1c41 "2020-01-29"]
+     (jdt/nav :to :local-date)     ;; => #object[java.time.LocalDate 0x167f1c41 "2020-01-29"]
      jdt/datafy 
-     (jdt/nav :year-month nil)     ;; => #object[java.time.YearMonth 0x9a9de2f "2020-01"]
+     (jdt/nav :to :year-month)     ;; => #object[java.time.YearMonth 0x9a9de2f "2020-01"]
     )
 )
 
@@ -134,7 +134,7 @@ the metadata carried by the result of `datafy` (which conveniently includes the 
 
 #### jedi-time.core/redatafy 
 
-The composition of `undatafy` and `datafy`. 
+The composition of `undatafy` and `datafy`. Useful for re-obtaining `nav` capabilities on a datafied (but meta-less) map.  
 
 
 ### jedi-time.parse
