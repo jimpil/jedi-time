@@ -260,7 +260,6 @@ A two-element vector. First element is expected to be a positive integer, follow
 - :decades 
 - :centuries
 - :millenia 
-- :eras 
 
 ### :to
 This is a bit more complicated and so left last. We have to look at each class separately again:
