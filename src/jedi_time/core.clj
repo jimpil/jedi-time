@@ -61,7 +61,9 @@
 
 (defn- format*
   ^String [fmt iso-variant ^TemporalAccessor obj]
-  (.format (parse/dt-formatter fmt iso-variant) obj))
+  (-> fmt
+      (parse/dt-formatter iso-variant)
+      (.format obj)))
 
 (defn- julian-field*
   [^TemporalAccessor ta x]

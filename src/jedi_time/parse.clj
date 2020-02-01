@@ -5,8 +5,6 @@
                       Instant ZoneId ZoneOffset)
            (java.time.format DateTimeFormatter)))
 
-(set! *warn-on-reflection* true)
-
 (defn- parser-for
   "Returns a 2-arity parser-fn. First one accepts a single CharSequence,
    whereas the second one also accepts a DateTimeFormatter."
@@ -17,11 +15,11 @@
                 (Instant/parse x))
                ([x _]
                 (parse* x)))
-    :year-month (internal/parser-variant YearMonth)
-    :local-time (internal/parser-variant LocalTime)
-    :local-date (internal/parser-variant LocalDate)
-    :local-datetime (internal/parser-variant LocalDateTime)
-    :zoned-datetime (internal/parser-variant ZonedDateTime)
+    :year-month      (internal/parser-variant YearMonth)
+    :local-time      (internal/parser-variant LocalTime)
+    :local-date      (internal/parser-variant LocalDate)
+    :local-datetime  (internal/parser-variant LocalDateTime)
+    :zoned-datetime  (internal/parser-variant ZonedDateTime)
     :offset-datetime (internal/parser-variant OffsetDateTime)
     ))
 
