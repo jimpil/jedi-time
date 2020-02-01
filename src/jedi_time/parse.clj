@@ -94,24 +94,22 @@
        (DateTimeFormatter/ofPattern x)
        x))))
 
-(defn system-zone   [] (ZoneId/systemDefault))
-(defn system-offset [] (ZoneOffset/systemDefault))
-
 (defn zone-id
   ^ZoneId [x]
   (if (or (nil? x)
           (= :system x))
-    (system-zone)
+    (ZoneId/systemDefault)
     (if (string? x)
       (ZoneId/of ^String x)
       x)))
 
 (defn zone-offset
-  ^ZoneOffset [x]
-  (if (or (nil? x)
-          (= :system x))
-    (system-offset)
-    (if (string? x)
-      (ZoneOffset/of ^String x)
-      x)))
-
+  ^ZoneOffset [x ^LocalDateTime ldt]
+   (if (or (nil? x)
+           (= :system x))
+     (-> (ZoneId/systemDefault)
+         .getRules
+         (.getOffset ldt))
+     (if (string? x)
+       (ZoneOffset/of ^String x)
+       x)))

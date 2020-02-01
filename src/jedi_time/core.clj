@@ -7,7 +7,7 @@
              [parse    :as parse]])
   (:import (java.time YearMonth Month DayOfWeek Instant
                       LocalTime LocalDate LocalDateTime
-                      ZonedDateTime OffsetDateTime ZoneId Clock)
+                      ZonedDateTime OffsetDateTime ZoneId Clock ZoneOffset)
            (java.time.format DateTimeFormatter)
            (java.time.temporal IsoFields Temporal TemporalAccessor JulianFields)
            (java.math RoundingMode)))
@@ -33,13 +33,13 @@
     (if-let [zone-id (get-in x [:zone :id])]
       (ZonedDateTime/ofStrict
         (internal/local-datetime-of x)
-        (parse/zone-offset (get-in x [:offset :id]))
+        (ZoneOffset/ofTotalSeconds (get-in x [:offset :seconds]))
         (parse/zone-id zone-id))
 
       (if-let [offset-id (get-in x [:offset :id])]
-        (OffsetDateTime/of
-          (internal/local-datetime-of x)
-          (parse/zone-offset offset-id))
+        (let [ldt (internal/local-datetime-of x)]
+          (OffsetDateTime/of ldt
+            (parse/zone-offset offset-id ldt)))
 
         (if-let [year-day (get-in x [:year :day])]
           (internal/local-datetime-of x)
@@ -119,10 +119,12 @@
            (case k
              :before? (.isBefore ym (undatafy v))
              :after?  (.isAfter  ym (undatafy v))
-             :to      (if (= :instant v)
-                        (-> (.atDay ym 1)
-                            (.atStartOfDay)
-                            (.toInstant (parse/zone-offset v)))
+             :to      (if (and (sequential? v)
+                               (= :instant (first v)))
+                        (let [^LocalDateTime ldt (-> ym
+                                                     (.atDay 1)
+                                                     (.atStartOfDay))]
+                          (.toInstant ldt (parse/zone-offset (second v) ldt)))
                         (invalid! v))
              :format  (format* (or v "yyyy-MM") nil ym)
              :+       (let [[n unit] v] (internal/safe-plus :date ym unit n))
@@ -168,11 +170,13 @@
              :+       (let [[n unit] v] (internal/safe-plus :date  ld unit n))
              :-       (let [[n unit] v] (internal/safe-minus :date ld unit n))
              :to      (case v
-                        :instant (-> (.atStartOfDay ld)
-                                     (.toInstant (parse/zone-offset v)))
                         :week-day weekday
                         :year-month ym
-                        (invalid! v))
+                        (if (and (sequential? v)
+                                 (= :instant (first v)))
+                          (let [ldt (.atStartOfDay ld)]
+                            (.toInstant ldt (parse/zone-offset (second v) ldt)))
+                          (invalid! v)))
              (invalid! k)))})))
 
   LocalDateTime
@@ -188,7 +192,7 @@
              :before?   (.isBefore ldt (undatafy v))
              :after?    (.isAfter  ldt (undatafy v))
              :at-zone   (let [[zid] v]   (.atZone   ldt (parse/zone-id zid)))
-             :at-offset (let [[offid] v] (.atOffset ldt (parse/zone-offset offid)))
+             :at-offset (let [[offid] v] (.atOffset ldt (parse/zone-offset offid ldt)))
              :format    (format* v DateTimeFormatter/ISO_LOCAL_DATE_TIME ldt)
              :julian    (julian-field* ldt v)
              :+         (let [[n unit] v] (internal/safe-plus :date  ldt unit n))
@@ -198,7 +202,7 @@
                           :local-date ld
                           (if (and (sequential? v)
                                    (= :instant (first v)))
-                            (.toInstant ldt (parse/zone-offset (second v)))
+                            (.toInstant ldt (parse/zone-offset (second v) ldt))
                             (invalid! v)))
              (invalid! k)))})))
 
@@ -221,8 +225,8 @@
              :after?    (.isAfter  odt (undatafy v))
              :at-offset (let [[offid mode] v]
                           (case (or mode :same-instant)
-                            :same-instant (.withOffsetSameInstant odt (parse/zone-offset offid))
-                            :same-local   (.withOffsetSameLocal   odt (parse/zone-offset offid))
+                            :same-instant (.withOffsetSameInstant odt (parse/zone-offset offid ldt))
+                            :same-local   (.withOffsetSameLocal   odt (parse/zone-offset offid ldt))
                             (invalid! mode)))
              :format    (format* v DateTimeFormatter/ISO_OFFSET_DATE_TIME odt)
              :julian    (julian-field* odt v)
