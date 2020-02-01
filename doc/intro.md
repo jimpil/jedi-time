@@ -266,29 +266,29 @@ A two-element vector. First element is expected to be a positive integer, follow
 This is a bit more complicated and so left last. We have to look at each class separately again:
 
 #### Instant 
-Datafied instances of `Instant` can `(nav inst :to ...)` pretty much anything, with the last argument expected to be a 2-element vector.
+Datafied instances of `Instant` can `(nav datafied :to ...)` pretty much anything, with the last argument expected to be a 2-element vector.
 First element is expected to be one of (`:local-time`, `:local-date`, `:local-datetime`, `offset-datetime`, `zoned-datetime`), 
 whereas the second a zone-id - the keyword `:system` (default), a String, or an actual `ZoneId` instance. 
 
 #### ZonedDateTime
-Datafied instances of `ZonedDateTime` can `(nav inst :to ...)` 3 things, with the last argument expected to be one of 
+Datafied instances of `ZonedDateTime` can `(nav datafied :to ...)` 3 things, with the last argument expected to be one of 
 (`:local-datetime`, `:offset-datetime`, `:instant`). 
 
 #### OffsetDateTime
-Datafied instances of `OffsetDateTime` can `(nav inst :to ...)` 2 things, with the last argument expected to be one of 
+Datafied instances of `OffsetDateTime` can `(nav datafied :to ...)` 2 things, with the last argument expected to be one of 
 (`:local-datetime`, `:instant`).
 
  #### LocalDateTime
- Datafied instances of `LocalDateTime` can `(nav inst :to ...)` 3 things, with the last argument expected to be one of 
+ Datafied instances of `LocalDateTime` can `(nav datafied :to ...)` 3 things, with the last argument expected to be one of 
  (`:local-date`, `:local-time`, `[:instant <offset-id>]`).
  
  #### LocalDate
- Datafied instances of `LocalDate` can `(nav inst :to ...)` 3 things, with the last argument expected to be one of 
+ Datafied instances of `LocalDate` can `(nav datafied :to ...)` 3 things, with the last argument expected to be one of 
  (`:week-day`, `:year-month`, `[:instant <offset-id>]`). In the case of navigating to Instant, `.atStartOfDay()` will be
  called to obtain the `LocalDateTime`. 
  
  #### YearMonth
- Datafied instances of `YearMonth` can `(nav inst :to [:instant <offset-id>])` only. 
+ Datafied instances of `YearMonth` can `(nav datafied :to [:instant <offset-id>])` only. 
  The Instant returned will be at the first day of the year (`.atDay(1)`), and at start of day (`.atStartOfDay()`).
 
 ## Invalid arguments
