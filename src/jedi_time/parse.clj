@@ -86,22 +86,34 @@
   )
 
 (defn dt-formatter
-  ^DateTimeFormatter [x]
-  (cond-> x
-          (string? x)
-          (DateTimeFormatter/ofPattern)))
-
-(defn zone-id
-  ^ZoneId [x]
-  (if (string? x)
-    (ZoneId/of ^String x)
-    x))
-
-(defn zone-offset
-  ^ZoneOffset [x]
-  (if (string? x)
-    (ZoneOffset/of ^String x)
-    x))
+  (^DateTimeFormatter [x]
+   (DateTimeFormatter/ofPattern x))
+  (^DateTimeFormatter [x iso]
+   (if (or (nil? x)
+           (= :iso x))
+     iso
+     (if (string? x)
+       (DateTimeFormatter/ofPattern x)
+       x))))
 
 (defn system-zone   [] (ZoneId/systemDefault))
 (defn system-offset [] (ZoneOffset/systemDefault))
+
+(defn zone-id
+  ^ZoneId [x]
+  (if (or (nil? x)
+          (= :system x))
+    (system-zone)
+    (if (string? x)
+      (ZoneId/of ^String x)
+      x)))
+
+(defn zone-offset
+  ^ZoneOffset [x]
+  (if (or (nil? x)
+          (= :system x))
+    (system-offset)
+    (if (string? x)
+      (ZoneOffset/of ^String x)
+      x)))
+

@@ -78,3 +78,18 @@
         (is (= d (jdt/redatafy d))
             (format "%s doesn't match after redatafy!" d)))
       )))
+
+(deftest julian-fields-tests
+  (testing ""
+    (doseq [t [:zoned-datetime
+               :offset-datetime
+               :local-datetime
+               :local-date]]
+      (let [now (jdt/now! {:as t})
+            datafied (d/datafy now)]
+        (is (pos-int? (d/nav datafied :julian :day)))
+        (is (pos-int? (d/nav datafied :julian :modified-day)))
+        (is (pos-int? (d/nav datafied :julian :rata-die))))
+      )
+    )
+  )

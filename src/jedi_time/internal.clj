@@ -1,7 +1,7 @@
 (ns jedi-time.internal
   (:require [jedi-time.units :as units])
   (:import (java.time.format DateTimeFormatter)
-           (java.time.temporal Temporal TemporalUnit TemporalAccessor JulianFields TemporalAmount)
+           (java.time.temporal Temporal TemporalUnit TemporalAmount)
            (java.time LocalDateTime LocalDate LocalTime YearMonth Period Duration)))
 
 (defmacro now-variant
@@ -48,14 +48,6 @@
   (when-let [^TemporalUnit u  (units/chrono-units unit)]
     (when (.isSupported t u)
       (.minus t (period-or-duration mode n unit u)))))
-
-(defn julian-field
-  [^TemporalAccessor ta x]
-  (case x
-    :day          (.get ta JulianFields/JULIAN_DAY)
-    :modified-day (.get ta JulianFields/MODIFIED_JULIAN_DAY)
-    :rata-die     (.get ta JulianFields/RATA_DIE)
-    nil))
 
 (defn local-datetime-of
   ^LocalDateTime [x]

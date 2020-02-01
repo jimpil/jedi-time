@@ -7,9 +7,9 @@
              [parse    :as parse]])
   (:import (java.time YearMonth Month DayOfWeek Instant
                       LocalTime LocalDate LocalDateTime
-                      ZonedDateTime OffsetDateTime)
+                      ZonedDateTime OffsetDateTime ZoneId Clock)
            (java.time.format DateTimeFormatter)
-           (java.time.temporal IsoFields Temporal)
+           (java.time.temporal IsoFields Temporal TemporalAccessor JulianFields)
            (java.math RoundingMode)))
 
 (defn ^:dynamic invalid!
@@ -56,28 +56,31 @@
                 (if (contains? x :year)
                   (internal/year-month-of x)
 
-                  (if-let [i (get-in x [:month :value])]
-                    (Month/of i)
-
-                    (invalid! {:reconstruct x})))))))))))
+                  (when-let [i (get-in x [:month :value])]
+                    (Month/of i)))))))))))
 
 (defn- format*
-  ^String [fmt iso-variant ^Temporal obj]
-  (.format ^DateTimeFormatter
-           (if (or (nil? fmt)
-                   (= :iso fmt))
-             iso-variant
-             (parse/dt-formatter fmt))
-           obj))
+  ^String [fmt iso-variant ^TemporalAccessor obj]
+  (.format (parse/dt-formatter fmt iso-variant) obj))
+
+(defn- julian-field*
+  [^TemporalAccessor ta x]
+  (case x
+    :day          (.getLong ta JulianFields/JULIAN_DAY)
+    :modified-day (.getLong ta JulianFields/MODIFIED_JULIAN_DAY)
+    :rata-die     (.getLong ta JulianFields/RATA_DIE)
+    (invalid! x)))
 
 (defn undatafy
   "Looks up the `:clojure.datafy/obj` key in the metadata of <x>.
    If that fails, reconstructs the appropriate temporal object from scratch
-   (assuming keys per the result of `datafy`)."
+   (assuming keys per the result of `datafy`). If that fails, returns/throws
+   `(invalid! {:not-datafied x})`."
   ^Temporal [x]
   (when (some? x)
     (or (original-object x)
-        (reconstruct-object x))))
+        (reconstruct-object x)
+        (invalid! {:not-datafied x}))))
 
 (def redatafy
   "Composes `datafy` with`undatafy` (via `comp`).
@@ -117,7 +120,7 @@
              :to      (if (= :instant v)
                         (-> (.atDay ym 1)
                             (.atStartOfDay)
-                            (.toInstant (or (parse/zone-offset v) (parse/system-offset))))
+                            (.toInstant (parse/zone-offset v)))
                         (invalid! v))
              :format  (format* (or v "yyyy-MM") nil ym)
              :+       (let [[n unit] v] (internal/safe-plus :date ym unit n))
@@ -159,12 +162,12 @@
              :before? (.isBefore ld (undatafy v))
              :after?  (.isAfter  ld (undatafy v))
              :format  (format* v DateTimeFormatter/ISO_LOCAL_DATE ld)
-             :julian  (internal/julian-field ld v)
+             :julian  (julian-field* ld v)
              :+       (let [[n unit] v] (internal/safe-plus :date  ld unit n))
              :-       (let [[n unit] v] (internal/safe-minus :date ld unit n))
              :to      (case v
                         :instant (-> (.atStartOfDay ld)
-                                     (.toInstant (or (parse/zone-offset v) (parse/system-offset))))
+                                     (.toInstant (parse/zone-offset v)))
                         :week-day weekday
                         :year-month ym
                         (invalid! v))
@@ -182,10 +185,10 @@
            (case k
              :before?   (.isBefore ldt (undatafy v))
              :after?    (.isAfter  ldt (undatafy v))
-             :at-zone   (let [[zid] v]   (.atZone   ldt (or (parse/zone-id zid) (parse/system-zone))))
-             :at-offset (let [[offid] v] (.atOffset ldt (or (parse/zone-offset offid) (parse/system-offset))))
+             :at-zone   (let [[zid] v]   (.atZone   ldt (parse/zone-id zid)))
+             :at-offset (let [[offid] v] (.atOffset ldt (parse/zone-offset offid)))
              :format    (format* v DateTimeFormatter/ISO_LOCAL_DATE_TIME ldt)
-             :julian    (internal/julian-field ldt v)
+             :julian    (julian-field* ldt v)
              :+         (let [[n unit] v] (internal/safe-plus :date  ldt unit n))
              :-         (let [[n unit] v] (internal/safe-minus :date ldt unit n))
              :to        (case v
@@ -193,7 +196,7 @@
                           :local-date ld
                           (if (and (sequential? v)
                                    (= :instant (first v)))
-                            (.toInstant ldt (or (some-> (second v) parse/zone-offset) (parse/system-offset)))
+                            (.toInstant ldt (parse/zone-offset (second v)))
                             (invalid! v)))
              (invalid! k)))})))
 
@@ -216,11 +219,11 @@
              :after?    (.isAfter  odt (undatafy v))
              :at-offset (let [[offid mode] v]
                           (case (or mode :same-instant)
-                            :same-instant (.withOffsetSameInstant odt (or (parse/zone-offset offid) (parse/system-offset)))
-                            :same-local   (.withOffsetSameLocal   odt (or (parse/zone-offset offid) (parse/system-offset)))
+                            :same-instant (.withOffsetSameInstant odt (parse/zone-offset offid))
+                            :same-local   (.withOffsetSameLocal   odt (parse/zone-offset offid))
                             (invalid! mode)))
              :format    (format* v DateTimeFormatter/ISO_OFFSET_DATE_TIME odt)
-             :julian    (internal/julian-field odt v)
+             :julian    (julian-field* odt v)
              :+         (let [[n unit] v] (internal/safe-plus :date odt unit n))
              :-         (let [[n unit] v] (internal/safe-minus :date odt unit n))
              :to        (case v
@@ -236,26 +239,26 @@
           ret  (-> (d/datafy odt)
                    (assoc-in [:zone :id] (.getId zone)))]
       (with-meta ret
-        {`p/nav
-         (fn [_ k v]
-           (case k
-             :before? (.isBefore zdt (undatafy v))
-             :after?  (.isAfter  zdt (undatafy v))
-             :at-zone (let [[zid mode] v]
-                        (case (or mode :same-instant)
-                          :same-instant (.withZoneSameInstant zdt (or (parse/zone-id zid) (parse/system-zone)))
-                          :same-local   (.withZoneSameLocal   zdt (or (parse/zone-id zid) (parse/system-zone)))
-                          (invalid! mode)))
-             :format  (format* v DateTimeFormatter/ISO_ZONED_DATE_TIME zdt)
-             :julian  (internal/julian-field zdt v)
-             :+       (let [[n unit] v] (internal/safe-plus :date zdt unit n))
-             :-       (let [[n unit] v] (internal/safe-minus :date zdt unit n))
-             :to      (case v
-                        :offset-datetime odt
-                        :local-datetime (.toLocalDateTime zdt)
-                        :instant        (.toInstant odt)
-                        (invalid! v))
-             (invalid! k)))})))
+                 {`p/nav
+                  (fn [_ k v]
+                    (case k
+                      :before? (.isBefore zdt (undatafy v))
+                      :after? (.isAfter zdt (undatafy v))
+                      :at-zone (let [[zid mode] v]
+                                 (case (or mode :same-instant)
+                                   :same-instant (.withZoneSameInstant zdt (parse/zone-id zid))
+                                   :same-local (.withZoneSameLocal zdt (parse/zone-id zid))
+                                   (invalid! mode)))
+                      :format (format* v DateTimeFormatter/ISO_ZONED_DATE_TIME zdt)
+                      :julian (julian-field* zdt v)
+                      :+ (let [[n unit] v] (internal/safe-plus :date zdt unit n))
+                      :- (let [[n unit] v] (internal/safe-minus :date zdt unit n))
+                      :to (case v
+                            :offset-datetime odt
+                            :local-datetime (.toLocalDateTime zdt)
+                            :instant (.toInstant odt)
+                            (invalid! v))
+                      (invalid! k)))})))
 
   Instant
   ;; a count of nanoseconds since the epoch of the first moment of 1970 in UTC
@@ -281,11 +284,11 @@
              :-       (let [[n unit] v] (internal/safe-minus :time inst unit n))
              :to      (let [[t z] v]
                         (case t
-                          :local-time      (LocalTime/ofInstant      inst  (or (parse/zone-id z) (parse/system-zone)))
-                          :local-date      (LocalDate/ofInstant      inst  (or (parse/zone-id z) (parse/system-zone)))
-                          :local-datetime  (LocalDateTime/ofInstant  inst  (or (parse/zone-id z) (parse/system-zone)))
-                          :offset-datetime (OffsetDateTime/ofInstant inst  (or (parse/zone-id z) (parse/system-zone)))
-                          :zoned-datetime  (ZonedDateTime/ofInstant  inst  (or (parse/zone-id z) (parse/system-zone)))
+                          :local-time      (LocalTime/ofInstant      inst  (parse/zone-id z))
+                          :local-date      (LocalDate/ofInstant      inst  (parse/zone-id z))
+                          :local-datetime  (LocalDateTime/ofInstant  inst  (parse/zone-id z))
+                          :offset-datetime (OffsetDateTime/ofInstant inst  (parse/zone-id z))
+                          :zoned-datetime  (ZonedDateTime/ofInstant  inst  (parse/zone-id z))
                           (invalid! v)))
              (invalid! k)))})))
   )
@@ -298,7 +301,7 @@
    Consumers may need to type-hint (per <as>) at the call-site (in case Temporal doesn't suffice)."
 
   (^Temporal [] (now! nil))
-  (^Temporal [{:keys [as zone-id clock]
+  (^Temporal [{:keys [as ^ZoneId zone-id ^Clock clock]
                :or   {as :instant}}]
    (case as
     :instant         (internal/now-variant Instant clock zone-id)
