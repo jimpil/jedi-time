@@ -6,6 +6,10 @@ A tiny Clojure library designed to _complement_ the `java.time` API (introduced 
 It exposes a handful of functions, and is mainly based on the `p/Datafiable` and `p/Navigable` protocols 
 (introduced with Clojure 1.10).
 
+## Where
+
+[![Clojars Project](https://clojars.org/jedi-time/latest-version.svg)](https://clojars.org/jedi-time)
+
 ## Premise 
 `java.time` is a piece of art. The API is well thought out, its classes are immutable, its methods well named, 
 the conventions/idioms introduced are sound and are consistently followed, and generally speaking it is (for the most part)
