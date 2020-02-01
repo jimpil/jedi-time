@@ -279,15 +279,15 @@ Datafied instances of `OffsetDateTime` can `(nav datafied :to ...)` 2 things, wi
 
  #### LocalDateTime
  Datafied instances of `LocalDateTime` can `(nav datafied :to ...)` 3 things, with the last argument expected to be one of 
- (`:local-date`, `:local-time`, `[:instant <offset-id>]`).
+ (`:local-date`, `:local-time`, `[:instant <offset-id>]`). The <offset-id> defaults to `:system`.
  
  #### LocalDate
  Datafied instances of `LocalDate` can `(nav datafied :to ...)` 3 things, with the last argument expected to be one of 
  (`:week-day`, `:year-month`, `[:instant <offset-id>]`). In the case of navigating to Instant, `.atStartOfDay()` will be
- called to obtain the `LocalDateTime`. 
+ called to obtain the `LocalDateTime`. The <offset-id> defaults to `:system`.
  
  #### YearMonth
- Datafied instances of `YearMonth` can `(nav datafied :to [:instant <offset-id>])` only. 
+ Datafied instances of `YearMonth` can `(nav datafied :to [:instant <offset-id>])` only. The <offset-id> defaults to `:system`.
  The Instant returned will be at the first day of the year (`.atDay(1)`), and at start of day (`.atStartOfDay()`).
 
 ## Invalid arguments
