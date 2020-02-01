@@ -299,11 +299,12 @@
    (defaults to :instant) representing the current point in time.
    A custom Clock <clock>, and/or a specific time-zone <zone-id> can be provided.
    If both are provided, the Clock takes precedence.
-   Consumers are encouraged to type-hint appropriately (per <as>) at the call-site."
-  ^Temporal
-  [& {:keys [as ^ZoneId zone-id ^Clock clock]
-      :or   {as :instant}}]
-  (case as
+   Consumers may need to type-hint (per <as>) at the call-site (in case Temporal doesn't suffice)."
+
+  (^Temporal [] (now! nil))
+  (^Temporal [{:keys [as ^ZoneId zone-id ^Clock clock]
+               :or   {as :instant}}]
+   (case as
     :instant         (internal/now-variant Instant clock zone-id)
     :year-month      (internal/now-variant YearMonth clock zone-id)
     :local-time      (internal/now-variant LocalTime clock zone-id)
@@ -311,4 +312,4 @@
     :local-datetime  (internal/now-variant LocalDateTime clock zone-id)
     :offset-datetime (internal/now-variant OffsetDateTime clock zone-id)
     :zoned-datetime  (internal/now-variant ZonedDateTime clock zone-id)
-    (invalid! as)))
+    (invalid! as))))

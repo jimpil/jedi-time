@@ -20,7 +20,7 @@
 
   (doseq [t test-keys]
 
-    (let [now      (jdt/now! :as t)
+    (let [now      (jdt/now! {:as t})
           datafied (d/datafy now)
           datafied-no-meta (strip-meta datafied)]
 
@@ -36,7 +36,7 @@
                  :offset-datetime
                  :local-datetime
                  :local-date]]
-        (let [now (jdt/now! :as t)
+        (let [now (jdt/now! {:as t})
               datafied (d/datafy now)
               modified (d/nav datafied :+ [1 :weeks])
               modified-datafied (d/datafy modified)
@@ -54,7 +54,7 @@
                          :value 3
                          :length 31}}
           dates (map
-                  #(-> (jdt/now! :as %)
+                  #(-> (jdt/now! {:as %})
                        d/datafy
                        strip-meta)
                   test-keys)]
