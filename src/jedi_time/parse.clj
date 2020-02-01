@@ -102,3 +102,6 @@
   (if (string? x)
     (ZoneOffset/of ^String x)
     x))
+
+(defn system-zone   [] (ZoneId/systemDefault))
+(defn system-offset [] (ZoneOffset/systemDefault))

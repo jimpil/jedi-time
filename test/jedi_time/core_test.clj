@@ -1,7 +1,8 @@
 (ns jedi-time.core-test
   (:require [clojure.test :refer :all]
             [clojure.datafy :as d]
-            [jedi-time.core :as jdt]))
+            [jedi-time.core :as jdt]
+            [jedi-time.units :as units]))
 
 (defn- strip-meta
   [x]
@@ -31,22 +32,36 @@
       )))
 
 (deftest nav-tests
-  (testing "roundtrip via :+/:-"
-      (doseq [t [:zoned-datetime
-                 :offset-datetime
-                 :local-datetime
-                 :local-date]]
-        (let [now (jdt/now! {:as t})
+  (testing "datetime roundtrip via :+/:- (all ChronoUnits)"
+    (doseq [t [:zoned-datetime :offset-datetime :local-datetime]
+            u (keys units/chrono-units)]
+      (let [now (jdt/now! {:as t})
+            datafied (d/datafy now)
+            modified (d/nav datafied :+ [4 u])
+            modified-datafied (d/datafy modified)
+            modified-datafied-back (d/nav modified-datafied :- [4 u])
+            modified-datafied-back-datafied (d/datafy modified-datafied-back)]
+        (is (= datafied modified-datafied-back-datafied)
+            (format "%s doesn't match!" [t u]))
+        (is (= now (jdt/undatafy (strip-meta modified-datafied-back-datafied)))
+            (format "%s doesn't match after undatafy!" [t u]))))
+
+    ;; do the same for Instant
+    (testing "instant roundtrip via :+/:- (supported ChronoUnits)"
+      (doseq [u (-> units/chrono-units
+                    (dissoc :weeks :months :years :decades  :centuries :millenia)
+                    keys)] ;; weeks, months, years etc not supported for Instant
+        (let [now (jdt/now! {:as :instant})
               datafied (d/datafy now)
-              modified (d/nav datafied :+ [1 :weeks])
+              modified (d/nav datafied :+ [4 u])
               modified-datafied (d/datafy modified)
-              modified-datafied-back (d/nav modified-datafied :- [1 :weeks])
+              modified-datafied-back (d/nav modified-datafied :- [4 u])
               modified-datafied-back-datafied (d/datafy modified-datafied-back)]
           (is (= datafied modified-datafied-back-datafied)
-              (format "%s doesn't match!" t))
+              (format "%s doesn't match!" [:instant u]))
           (is (= now (jdt/undatafy (strip-meta modified-datafied-back-datafied)))
-              (format "%s doesn't match!" t))))
-      ))
+              (format "%s doesn't match after undatafy!" [:instant u])))))
+    ))
 
 (deftest undatafy-tests
   (testing "undatafy slow path"

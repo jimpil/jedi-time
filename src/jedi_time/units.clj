@@ -1,7 +1,7 @@
 (ns jedi-time.units
   (:import (java.time.temporal ChronoUnit)))
 
-(defonce chrono-units
+(def chrono-units
   {:nanos   ChronoUnit/NANOS
    :micros  ChronoUnit/MICROS
    :millis  ChronoUnit/MILLIS
@@ -16,5 +16,5 @@
    :decades ChronoUnit/DECADES
    :centuries ChronoUnit/CENTURIES
    :millenia ChronoUnit/MILLENNIA
-   :eras     ChronoUnit/ERAS}
+   }
   )

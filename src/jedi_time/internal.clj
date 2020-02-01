@@ -27,10 +27,14 @@
   (case mode
     :time (Duration/of n tu)
     :date (case unit
-            :days   (Period/ofDays   n)
-            :weeks  (Period/ofWeeks  n)
-            :months (Period/ofMonths n)
-            :years  (Period/ofYears  n)
+            :half-days (Period/ofDays (int (/ n 2)))
+            :days      (Period/ofDays   n)
+            :weeks     (Period/ofWeeks  n)
+            :months    (Period/ofMonths n)
+            :years     (Period/ofYears  n)
+            :decades   (Period/ofYears (* n 10))
+            :centuries (Period/ofYears (* n 100))
+            :millenia  (Period/ofYears (* n 1000))
             (Duration/of n tu))))
 
 (defn safe-plus
