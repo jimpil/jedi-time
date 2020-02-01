@@ -7,7 +7,7 @@
   :dependencies [[org.clojure/clojure "1.10.1" :scope "provided"]]
   :global-vars {*warn-on-reflection* true}
 
-  :release-tasks [["vcs" "assert-committed"]
+  :release-tasks [;["vcs" "assert-committed"]
                   ["change" "version"
                    "leiningen.release/bump-version" "release"]
                   ["vcs" "commit"]
