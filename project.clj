@@ -1,4 +1,4 @@
-(defproject jedi-time "0.1.4"
+(defproject jedi-time "0.1.5-SNAPSHOT"
   :description "Datafiable/Navigable protocol extensions for the core java.time objects."
   :url "https://github.com/jimpil/jedi-time"
   :author "Dimitrios Piliouras <jimpil1985@gmail.com>"
@@ -12,5 +12,7 @@
                    "leiningen.release/bump-version" "release"]
                   ["vcs" "commit"]
                  ; ["vcs" "tag"]
-                  ["deploy" "clojars"]]
+                  ["deploy" "clojars"]
+                  ["change" "version"
+                   "leiningen.release/bump-version" "snapshot"]]
   )
