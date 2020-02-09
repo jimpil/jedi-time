@@ -14,5 +14,5 @@
                  ; ["vcs" "tag"]
                   ["deploy" "clojars"]
                   ["change" "version"
-                   "leiningen.release/bump-version" "snapshot"]]
+                   "leiningen.release/bump-version"]]
   )

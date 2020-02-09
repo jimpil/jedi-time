@@ -2,14 +2,15 @@
   (:require [clojure.test :refer :all]
             [clojure.datafy :as d]
             [jedi-time.core :as jdt]
+            [jedi-time.datafied :as jdfd]
             [jedi-time.units :as units])
-  (:import (java.time ZonedDateTime OffsetDateTime LocalDateTime LocalDate LocalTime Instant DayOfWeek YearMonth)))
+  (:import (java.time ZonedDateTime OffsetDateTime LocalDateTime LocalDate LocalTime Instant DayOfWeek YearMonth Year Month)))
 
 (defn- strip-meta
   [x]
   (with-meta x {}))
 
-(def test-keys
+(def chrono-keys
   [:zoned-datetime
    :offset-datetime
    :local-datetime
@@ -20,7 +21,7 @@
 
 (deftest datafy-tests
 
-  (doseq [t test-keys]
+  (doseq [t chrono-keys]
 
     (let [now      (jdt/now! {:as t})
           datafied (d/datafy now)
@@ -32,19 +33,17 @@
           (format "%s doesn't match!" t))
       )))
 
-(deftest nav-tests
+(deftest shifting-tests
   (testing "datetime roundtrip via :+/:- (all ChronoUnits)"
     (doseq [t [:zoned-datetime :offset-datetime :local-datetime]
             u (keys units/chrono-units)]
       (let [now (jdt/now! {:as t})
             datafied (d/datafy now)
-            modified (d/nav datafied :+ [4 u])
-            modified-datafied (d/datafy modified)
-            modified-datafied-back (d/nav modified-datafied :- [4 u])
-            modified-datafied-back-datafied (d/datafy modified-datafied-back)]
-        (is (= datafied modified-datafied-back-datafied)
+            modified-datafied (jdfd/shift+ datafied [4 u])
+            modified-datafied-back (jdfd/shift- modified-datafied [4 u])]
+        (is (= datafied modified-datafied-back)
             (format "%s doesn't match!" [t u]))
-        (is (= now (jdt/undatafy (strip-meta modified-datafied-back-datafied)))
+        (is (= now (jdt/undatafy (strip-meta modified-datafied-back)))
             (format "%s doesn't match after undatafy!" [t u]))))
 
     ;; do the same for Instant
@@ -54,13 +53,11 @@
                     keys)] ;; weeks, months, years etc not supported for Instant
         (let [now (jdt/now! {:as :instant})
               datafied (d/datafy now)
-              modified (d/nav datafied :+ [4 u])
-              modified-datafied (d/datafy modified)
-              modified-datafied-back (d/nav modified-datafied :- [4 u])
-              modified-datafied-back-datafied (d/datafy modified-datafied-back)]
-          (is (= datafied modified-datafied-back-datafied)
+              modified-datafied (jdfd/shift+ datafied [4 u])
+              modified-datafied-back (jdfd/shift- modified-datafied [4 u])]
+          (is (= datafied modified-datafied-back)
               (format "%s doesn't match!" [:instant u]))
-          (is (= now (jdt/undatafy (strip-meta modified-datafied-back-datafied)))
+          (is (= now (jdt/undatafy (strip-meta modified-datafied-back)))
               (format "%s doesn't match after undatafy!" [:instant u])))))
     ))
 
@@ -73,7 +70,7 @@
                   #(-> (jdt/now! {:as %})
                        d/datafy
                        strip-meta)
-                  test-keys)]
+                  chrono-keys)]
 
       (doseq [d (cons month dates)]
         (is (= d (jdt/redatafy d))
@@ -92,8 +89,8 @@
             datafied (d/datafy now)
             now-later (jdt/now! {:as t})
             datafied-later (d/datafy now-later)]
-        (is (d/nav datafied :before? datafied-later))
-        (is (d/nav datafied-later :after? datafied)))))
+        (is (jdfd/before? datafied datafied-later))
+        (is (jdfd/after? datafied-later datafied)))))
   )
 
 
@@ -105,63 +102,25 @@
                :local-date]]
       (let [now (jdt/now! {:as t})
             datafied (d/datafy now)]
-        (is (pos-int? (d/nav datafied :julian :day)))
-        (is (pos-int? (d/nav datafied :julian :modified-day)))
-        (is (pos-int? (d/nav datafied :julian :rata-die))))
+        (is (pos-int? (d/nav datafied :julian/day nil)))
+        (is (pos-int? (d/nav datafied :julian/modified-day nil)))
+        (is (pos-int? (d/nav datafied :julian/rata-die nil))))
       )))
 
 
-(deftest conversion-tests
+(deftest navigation-tests
 
-  (testing "Instant supported conversions"
-    (let [now (jdt/now! {:as :instant})
-          datafied (d/datafy now)]
-      (is (instance? ZonedDateTime  (d/nav datafied :to [:zoned-datetime])))
-      (is (instance? OffsetDateTime (d/nav datafied :to [:offset-datetime "Australia/North"])))
-      (is (instance? LocalDateTime  (d/nav datafied :to [:local-datetime "America/Jamaica"])))
-      (is (instance? LocalDate      (d/nav datafied :to [:local-date])))
-      (is (instance? LocalTime      (d/nav datafied :to [:local-time]))))
-    )
-
-  (testing "zoned-datetime conversions"
+  (testing "zoned-datetime"
     (let [now (jdt/now! {:as :zoned-datetime})
           datafied (d/datafy now)]
-      (is (instance? OffsetDateTime (d/nav datafied :to :offset-datetime)))
-      (is (instance? LocalDateTime  (d/nav datafied :to :local-datetime)))
-      (is (instance? Instant        (d/nav datafied :to :instant)))))
-
-  (testing "offset-datetime conversions"
-    (let [now (jdt/now! {:as :offset-datetime})
-          datafied (d/datafy now)]
-      (is (instance? LocalDateTime (d/nav datafied :to :local-datetime)))
-      (is (instance? Instant       (d/nav datafied :to :instant)))))
-
-  (testing "local-datetime conversions"
-    (let [now (jdt/now! {:as :local-datetime})
-          datafied (d/datafy now)]
-      (is (instance? LocalDate (d/nav datafied :to :local-date)))
-      (is (instance? LocalTime (d/nav datafied :to :local-time)))
-      (is (instance? Instant   (d/nav datafied :to [:instant :system])))
-      (is (instance? Instant   (d/nav datafied :to [:instant]))) ;; same as above
-      (is (instance? Instant   (d/nav datafied :to [:instant "+03:00"])))
-      ))
-
-  (testing "local-date conversions"
-    (let [now (jdt/now! {:as :local-date})
-          datafied (d/datafy now)]
-      (is (instance? DayOfWeek (d/nav datafied :to :week-day)))
-      (is (instance? YearMonth (d/nav datafied :to :year-month)))
-      (is (instance? Instant   (d/nav datafied :to [:instant :system])))
-      (is (instance? Instant   (d/nav datafied :to [:instant]))) ;; same as above
-      (is (instance? Instant   (d/nav datafied :to [:instant "+03:00"])))
-      ))
-
-  (testing "year-month conversions"
-    (let [now (jdt/now! {:as :year-month})
-          datafied (d/datafy now)]
-      (is (instance? Instant (d/nav datafied :to [:instant :system])))
-      (is (instance? Instant (d/nav datafied :to [:instant]))) ;; same as above
-      (is (instance? Instant (d/nav datafied :to [:instant "+03:00"])))
-      ))
+      (is (instance? OffsetDateTime (d/nav datafied :offset-datetime nil)))
+      (is (instance? LocalDateTime  (d/nav datafied :local-datetime nil)))
+      (is (instance? LocalDate      (d/nav datafied :local-date nil)))
+      (is (instance? LocalTime      (d/nav datafied :local-time nil)))
+      (is (instance? YearMonth      (d/nav datafied :year-month nil)))
+      (is (instance? Year           (d/nav datafied :year nil)))
+      (is (instance? Month          (d/nav datafied :month nil)))
+      (is (instance? DayOfWeek      (d/nav datafied :weekday nil)))
+      (is (instance? Instant        (d/nav datafied :instant nil)))))
 
   )

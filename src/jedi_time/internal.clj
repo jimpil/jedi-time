@@ -37,46 +37,51 @@
             :millenia  (Period/ofYears (* n 1000))
             (Duration/of n tu))))
 
-(defn safe-plus
-  ^Temporal [mode ^Temporal t unit ^long n]
+(defn plus
+  ^Temporal [mode ^Temporal t unit n safe?]
   (when-let [^TemporalUnit u  (units/chrono-units unit)]
-    (when (.isSupported t u)
+    (if safe?
+      (when (.isSupported t u)
+        (.plus t (period-or-duration mode n unit u)))
       (.plus t (period-or-duration mode n unit u)))))
 
-(defn safe-minus
-  ^Temporal [mode ^Temporal t unit ^long n]
+
+(defn minus
+  ^Temporal [mode ^Temporal t unit n safe?]
   (when-let [^TemporalUnit u  (units/chrono-units unit)]
-    (when (.isSupported t u)
+    (if safe?
+      (when (.isSupported t u)
+        (.minus t (period-or-duration mode n unit u)))
       (.minus t (period-or-duration mode n unit u)))))
 
 (defn local-datetime-of
   ^LocalDateTime [x]
   (LocalDateTime/of
     ^int (get-in x [:year :value])
-    ^int (get-in x [:year :month :value])
-    ^int (get-in x [:year :month :day])
-    ^int (get-in x [:day :hour])
-    ^int (get-in x [:hour :minute])
-    ^int (get-in x [:minute :second])
-    ^int (get-in x [:second :nano])))
+    ^int (get-in x [:month :value])
+    ^int (get-in x [:month :day])
+    ^int (get x :hour)
+    ^int (get x :minute)
+    ^int (get x :second)
+    ^int (get x :second-nano)))
 
 (defn local-date-of
   ^LocalDate [x]
   (LocalDate/of
     ^int (get-in x [:year :value])
-    ^int (get-in x [:year :month :value])
-    ^int (get-in x [:year :month :day])))
+    ^int (get-in x [:month :value])
+    ^int (get-in x [:month :day])))
 
 (defn local-time-of
   ^LocalTime [x]
   (LocalTime/of
-    (get-in x [:day :hour])
-    (get-in x [:hour :minute])
-    (get-in x [:minute :second])
-    (get-in x [:second :nano])))
+    (get x :hour)
+    (get x :minute)
+    (get x :second)
+    (get x :second-nano)))
 
 (defn year-month-of
   ^YearMonth [x]
   (YearMonth/of
     ^int (get-in x [:year :value])
-    ^int (get-in x [:year :month :value])))
+    ^int (get-in x [:month :value])))

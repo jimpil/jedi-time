@@ -83,16 +83,20 @@
      (parse-fn dt formatter)))
   )
 
+(defn- fmt-of
+  [x]
+  (if (string? x)
+    (DateTimeFormatter/ofPattern x)
+    x))
+
 (defn dt-formatter
   (^DateTimeFormatter [x]
    (DateTimeFormatter/ofPattern x))
-  (^DateTimeFormatter [x iso]
+  (^DateTimeFormatter [x default]
    (if (or (nil? x)
-           (= :iso x))
-     iso
-     (if (string? x)
-       (DateTimeFormatter/ofPattern x)
-       x))))
+           (= :format/default x))
+     (fmt-of default)
+     (fmt-of x))))
 
 (defn zone-id
   ^ZoneId [x]
