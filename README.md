@@ -19,31 +19,54 @@ the conventions/idioms introduced are sound and are consistently followed, and g
  
  Given the above premise, `jedi-time` **doesn't** try to be a full wrapper around `java.time`. There are good Clojure wrappers around.
  Instead, the intention here to provide a bridge from `java.time` objects to Clojure maps (and back - even if 
- the metadata was somehow lost). Navigation facilities (as you'll see below) do have a wrapper feel to them, but they don't even scratch the surface of the entire `java.time` API.  
+ the metadata was somehow lost). Certain navigation facilities (as we'll see) do have a wrapper feel to them, 
+ but they don't even scratch the surface of the entire `java.time` API.  
 
-## Convention
-Temporal fields are hierarchical, and so in Java the naming convention follows the `bar-of-foo` pattern (e.g Chrono/ISO fields etc).
-In `jedi-time`, `bar-of-foo` becomes path `[:foo :bar]`. For instance `ChronoField/DAY_OF_YEAR` becomes `[:year :day]`, 
-and you can use it to pull out the value from the datafied  using `get-in` (see below). 
+## Conventions/Semantics
 
+### datafy
+In its original conception `jedi-time` used map nesting in order to mirror the hierarchical nature of temporal fields.
+This doesn't play very well with `nav`, and so the datafication model is now flatter. Instead of nesting, a composite object
+will contain more than one top-level keys. The simplest example to illustrate this is by comparing a `Year` VS a `Month` VS a `YearMonth`. 
+In the original model (release 0.1.4 only), the latter would have a single `:year` key and a `[:year :month]` path, whereas now there will be
+two top-level keys (`:year` and `:month`), whose combination represents the (datafied) `YearMonth`.
+
+In short, if a top-level key maps directly to a `java.time` object, then it will be a *non-namespaced* keyword pointing to a map 
+(this facilitates REBL navigation). If there isn't a corresponding Java object, the key will *namespaced* pointing to a raw value. 
+It's worth noting that high level objects like `LocalDate` (or even `LocalTime` and `YearMonth`) will be broken down to their constituents parts, 
+so, even for the richest of objects (e.g. `ZonedDateTime`), the resulting map will typically **not** contain more than 6 non-namespaced keys.
+ 
+### nav 
+Navigation through non-namespaced keywords will usually lead you to `java.time` objects (that can be further datafied, navigated and so on). 
+Namespaced keywords will lead you to base values (typically Number or String). It's important to note that navigation through an existing 
+key pays attention not only to the key being navigated (2nd arg), but also to the value (3rd arg). This basically means that navigating 
+to an altered value will return an altered object, and so care needs to be taken when updating (or adding/removing for that matter) keys, 
+as it does affect navigation. 
+
+Finally, `jedi-time` adds some extra semantics for `:format`, `offset`, `:zone` and `:instant` navigation paths (explained later).
+ 
 ## Usage
 
 ### jedi-time.core
 
 The majority of the functionality is provided in the core namespace. 
-Loading/requiring it automatically extends `clojure.core.protocols/Datafiable` to the following 9 `java.time` types:
+Loading/requiring it automatically extends `clojure.core.protocols/Datafiable` to the following 13 `java.time` types:
 
 1. Month
-2. DayOfWeek 
-3. YearMonth
-4. LocalTime
-5. LocalDate
-6. LocalDateTime
-7. OffsetDateTime
-8. ZonedDateTime
-9. Instant
+2. MonthDay
+3. DayOfWeek 
+4. Year
+5. YearMonth
+6. LocalTime
+7. LocalDate
+8. LocalDateTime
+9. OffsetDateTime
+10. ZonedDateTime
+11. Instant
+12. ZoneOffset
+13. ZoneId
 
-All datafied implementations return a `clojure.core.protocols/Navigable` map. 
+All datafied implementations return a navigable (`clojure.core.protocols/Navigable`) map. 
 You can think of it as a plain Clojure map if you only care about the raw data. 
 However, navigation can take us places, so if you like travelling buckle on. ;) 
 
@@ -54,47 +77,47 @@ Ok, so you have a `java.time` object - what can you do with it? The obvious thin
 (require '[jedi-time.core :as jdt]
          '[clojure.datafy :as d])   ;; first things first
 
-(d/datafy (jdt/now! :as :zoned-datetime)) ;; datafy an instance of ZonedDateTime
+(d/datafy (jdt/now! {:as :zoned-datetime})) ;; datafy an instance of ZonedDateTime
 => 
-{:day  {:hour 20},               ;; hour of day
- :hour {:minute 9},              ;; minute of hour
- :week {:day {:name "WEDNESDAY", ;; name of day of week
-              :value 3}},        ;; index of day of week
- :second {:nano 11914000,        ;; nano of second
-          :milli 11,             ;; milli of second 
-          :micro 11914},         ;; micro of second 
- :minute {:second 34}            ;; second of minute 
- :offset {:id "Z",               ;; id of offset  
-          :hours 0,              ;; hours of offset
-          :seconds 0},           ;; seconds of offset 
- :zone {:id "Europe/London"},    ;; id of zone
- :year {:month {:name "JANUARY", ;; name of month of year
-                :value 1,        ;; index of month of year 
-                :length 31,      ;; length of month of year (accounting for leap years)
-                :day 8},         ;; day of month of year
-       :length 366,              ;; length of year
-       :leap? true,              ;; is leap year?
-       :value 2020,              ;; value of year
-       :day 8                    ;; day of year 
-       :week 2}                  ;; week of year 
+{:year/day 42,               ;; day of year 
+ :offset {:id "Z",           ;; ZoneOffset object
+          :seconds 0, 
+          :hours 0.0},
+ :zone {:id "Europe/London"} ;; ZoneId object 
+ :month {:name "FEBRUARY",   ;; Month object
+         :value 2, 
+         :length 29},
+ :year {:value 2020,         ;; Year object
+        :leap? true, 
+        :length 366},
+ :minute/second 42,          ;; second of minute 
+ :week-day {:name "TUESDAY", ;; DayOfWeek object
+            :value 2},
+ :month-day {:value 11},     ;; MonthDay object
+ :hour/minute 35,            ;; minute of hour
+ :second/nano 701702000,     ;; nano of second 
+ :second/milli 701,          ;; milli of second
+ :second/micro 701702,       ;; micro of second
+ :day/hour 20,               ;; hour of day
+ :year/week 7                ;; week of year 
  }           
 
 (class *1)
 => clojure.lang.PersistentArrayMap
 ```
-This is the object represented as data. 
+This is the object represented as data.
 This alone, opens up a world of opportunities, but wait there is more...
 
 Given the above data representation, we can navigate to a bunch of things 
 (see the [intro](doc/intro.md) for an exhaustive list):
 
 ```clj
-(let [datafied (d/datafy (jdt/now! :as :zoned-datetime))] 
+(let [datafied (d/datafy (jdt/now! {:as :zoned-datetime}))] 
   
   (d/nav datafied :format :iso)       =>  "2020-01-29T08:37:31.737789Z[Europe/London]"
   (d/nav datafied :format "yy-MM-dd") =>  "20-01-29"
-  (d/nav datafied :to :instant)       =>  #object[java.time.Instant 0x19ca0015 "2020-01-29T08:37:31.737789Z"]
-)
+  (d/nav datafied :instant nil)       =>  #object[java.time.Instant 0x19ca0015 "2020-01-29T08:37:31.737789Z"]
+ );; 
 ```
 You can navigate to some (chronologically) modified, or alternate version (where supported).
 
@@ -107,38 +130,127 @@ You can navigate to some (chronologically) modified, or alternate version (where
 (d/nav datafied :at-offset ["+01:00"        :same-local])  
 ```
 
-You can navigate to any direct parents (e.g. :local-time + :local-date => local-datetime) 
-of the datafied object, except from a datafied `Instant` which can be navigated to pretty much anything: 
+You can downgrade (by giving up some information), or upgrade (by making some assumptions) the datafied representation: 
 
 ```clj
 
-(let [datafied (d/datafy (jdt/now! :as :offset-datetime))] 
-  (-> datafied  
-     (d/nav :to :local-datetime) ;; => #object[java.time.LocalDateTime 0x7363452f "2020-01-29T10:15:21.399461"]
-     d/datafy
-     (d/nav :to :local-date)     ;; => #object[java.time.LocalDate 0x167f1c41 "2020-01-29"]
-     d/datafy 
-     (d/nav :to :year-month)     ;; => #object[java.time.YearMonth 0x9a9de2f "2020-01"]
-    )
-)
+(let [datafied (d/datafy (jdt/now! {:as :offset-datetime}))] 
+  ;; downgrading (this works because the graph is traversed recursively)
+  (d/nav datafied :local-datetime nil) ;; => #object[java.time.LocalDateTime 0x7363452f "2020-01-29T10:15:21.399461"]
+  (d/nav datafied :local-date nil)     ;; => #object[java.time.LocalDate 0x167f1c41 "2020-01-29"]
+  (d/nav datafied :year-month nil)     ;; => #object[java.time.YearMonth 0x9a9de2f "2020-01"]
+  ;; ...etc
+ )
+
+(let [datafied (d/datafy (jdt/now! {:as :instant}))] 
+  
+  ;; upgrading (this works because Instant doesn't naturally have zone information)
+  (d/nav datafied :zone "Europe/London")                         
+  ;; => #object[java.time.ZonedDateTime 0x671baa90 "2020-02-11T21:34:55.558861Z[Europe/London]"]
+  
+  (d/nav (assoc datafied :zone "Europe/London") :zone nil)       ;; zone as String works     
+  ;; => #object[java.time.ZonedDateTime 0x671baa90 "2020-02-11T21:34:55.558861Z[Europe/London]"]
+  
+  (d/nav (assoc datafied :zone {:id "Europe/London"}) :zone nil) ;; zone as data works
+  ;; => #object[java.time.ZonedDateTime 0x671baa90 "2020-02-11T21:34:55.558861Z[Europe/London]"]
+ );; this is super useful for storing/commnicating essentially compressed zoned/offset-datetimes (an `Instant` carrying a `:zone`/`offset`).  
+
+(let [datafied (d/datafy (jdt/now! {:as :local-date}))]
+  ;; upgrading (assuming start-of-day)
+  (d/nav datafied :local-datetime nil)  ;; => #object[java.time.LocalDateTime 0x1a19c079 "2020-02-11T00:00"]
+ )
 
 ```
 
-If calling `d/nav` returns a Java object, it is going to be one of the aforementioned 9 objects, and so it can be datafied. 
 This whole datafy/nav dance basically creates a graph structure.   
-
 
 #### jedi-time.core/undatafy 
 
 As the name implies, `jdt/undatafy` is the opposite of `d/datafy`.
 It can take any Clojure map (not necessarily the direct result of `d/datafy`), 
 and turn it into the correct `java.time` object. Therefore, you don't need to worry about losing 
-the metadata carried by the result of `d/datafy` (which conveniently includes the original object).
+the metadata carried by the result of `d/datafy`.
 
 #### jedi-time.core/redatafy 
 
 The composition of `jdt/undatafy` and `d/datafy`. Useful for re-obtaining `d/nav` capabilities on a meta-less mirror of something datafied.  
 
+### jedi-time.datafied.specs
+Self-explanatory package - start with `jedi-time.datafied.specs.core.clj`. Not connected to anything at runtime, but super useful for
+development, documentation, debugging etc.   
+
+### jedi-time.datafied.batteries
+Top level namespace for interacting with datafied representations. 
+All functions in this namespace accept a map as the 1st arg (something datafied), 
+and return a new one. 
+
+#### shift+/shift-
+Takes a datafied representation and a vector of two elements (n, units), 
+and returns a new datafied shifted forward by n units. An optional 3rd boolean arg 
+will indicate whether the operation should be done safely (guarded by a `.isSupported()` condition),
+in which case may return nil. 
+
+```clj
+(let [datafied (d/datafy (jdt/now! {:as :local-datetime}))]
+  (get-in datafied [:week-day :value])        ;; => 3 
+  (:day/hour datafied)                        ;; => 17
+  
+  (:day/hour (bt/shift+ datafied [4 :hours]))                ;; => 21 (17 + 4)
+  (get-in (bt/shift+ datafied [2 :days]) [:week-day :value]) ;; => 5 (3 + 2)
+ ) ;; ;; care has been taken to use Period VS Duration correctly depending on the object/unit at hand.
+``` 
+
+Round-tripping using the same amount of time is a no-op (will take you back to the map you started with). 
+Datafied representations of objects like `ZoneId` and `Offset` don't support this. 
+
+#### before?/after?
+Predicates for chronologically comparing two datafied representations (this, other). 
+Boils down to `this.isBefore(other)`, and `this.isAfter(other)`. Datafied representations 
+of objects like `ZoneId`, `Offset`, `Month` and `DayOfWeek` don't support this.
+
+#### at-zone/at-offset
+For datafied representations that naturally come with a zone/offset, 
+this will translate them to the provided zone/offset (2nd arg). 
+The translation is done *with-same-instant* by default, but can be overridden in the 3rd arg.
+
+For representations that don't naturally come with a zone/offset, this will attempt to upgrade them 
+(potentially making some assumptions along the way).
+
+As a side-note, this is entirely based on `d/nav`, so technically you don't need to go through these fns.
+For instance, consider a datafied `ZonedDateTime` with an extra key:
+
+```clj
+(-> (ZonedDateTime/now (ZoneId/of "US/Pacific"))
+    d/datafy
+    (assoc-in [:zone :id] "Europe/Athens") ;; update the zone
+    (assoc-in [:zone :same] :instant)      ;; provide a tranlation context for navigating to the new zone
+    (d/nav :zone nil) ;; in the context of REBL the last arg wouldn't be nil 
+    d/datafy          ;; datafying a brand new ZonedDateTime object
+    (d/nav :format :iso))  
+
+=> "2020-02-12T12:57:10.229428+02:00[Europe/Athens]"
+
+;; of course, this also works:
+
+(-> (ZonedDateTime/now (ZoneId/of "US/Pacific"))
+    d/datafy
+    (d/nav :zone {:id "Europe/Athens" :same :instant}) ;; the value we're providing doesn't have to match what's inside the map
+    d/datafy
+    (d/nav :format :iso))
+
+=> "2020-02-12T23:03:16.398514+02:00[Europe/Athens]"
+
+;; but this gives you back the ZoneId object
+
+(-> (ZonedDateTime/now (ZoneId/of "US/Pacific"))
+    d/datafy
+    (d/nav :zone {:id "Europe/Athens"})) ;; no :same key - no translation
+
+=> #object[java.time.ZoneRegion 0x6c3eec0e "Europe/Athens"]
+
+```
+Hopefully the above illustrates that :zone/:offset have extra navigation capabilities, 
+and these two helpers simply wrap those. 
 
 ### jedi-time.parse
 This is a convenience namespace. It provides the following (fully) type-hinted parsing functions, 
@@ -151,13 +263,34 @@ each taking one (String) or two (String, DateTimeFormatter) args.
 - parse-local-time
 - parse-year-month
 
+## Tips and tricks
+
+### ZonableInstant
+Such a class doesn't exist. You can have an `Instant` or a `ZonedDateTime`. However, consider the following map:
+
+```clj
+{:second/nano ...
+ :epoch/second ...
+ :zone {:id ...}} ;; this map-entry could come from anywhere and doesn't affect anything other than `nav`
+```   
+This is a perfectly valid `Instant` (i.e. it satisfies its spec and un-datafies correctly), 
+but in terms of navigation it kind of resembles a `ZonedDateTime`. In fact, the `:zone` entry 
+doesn't even need to be in the map, it can be passed as the 3rd arg to nav. 
+You can do the same with `:offset`.  
+
+### Randomly updating datafied representations 
+Avoid doing this for any purpose other than navigation. 
+Prefer shifting via the helpers in `jedi-time.datafied.batteries.clj`.
+
 ## TL;DR 
 
-- `clojure.core/Datafiable` has been extended to the main 9 types in `java.time`.
+- `clojure.core/Datafiable` has been extended to the main 13 types in `java.time`.
 
-- `(d/datafy x)` turns those 9 types into Clojure maps, and `jdt/undatafy` turns those (or meta-less mirrors of them) back into the right Java object.
+- `(d/datafy x)` turns those 13 types into Clojure maps, and `jdt/undatafy` turns those (or meta-less mirrors of them) back into the right Java object.
 
-- These maps can be navigated (via `d/nav`) in ways that reflect the semantics of the underlying Java objects (e.g formatting, comparing, shifting etc).  
+- These maps can be navigated (via `d/nav`) in ways that reflect the inner structure of the underlying Java objects. 
+
+- Some extra navigation capabilities exist (beyond the contained keys). 
 
 - Some parsing helpers exist in `jedi-time.parse`.
 

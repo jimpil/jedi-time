@@ -9,7 +9,7 @@
   `(cond
      (some? ~clock) (. ~klass now ~clock)
      (some? ~zone) (. ~klass now ~zone)
-     :else (. ~klass now))  ;; e.g. YearMonth/now
+     :else (. ~klass now))
   )
 
 (defmacro parser-variant
@@ -59,26 +59,26 @@
   (LocalDateTime/of
     ^int (get-in x [:year :value])
     ^int (get-in x [:month :value])
-    ^int (get-in x [:month :day])
-    ^int (get x :hour)
-    ^int (get x :minute)
-    ^int (get x :second)
-    ^int (get x :second-nano)))
+    ^int (get-in x [:month-day :value])
+    ^int (get x :day/hour)
+    ^int (get x :hour/minute)
+    ^int (get x :minute/second)
+    ^int (get x :second/nano)))
 
 (defn local-date-of
   ^LocalDate [x]
   (LocalDate/of
     ^int (get-in x [:year :value])
     ^int (get-in x [:month :value])
-    ^int (get-in x [:month :day])))
+    ^int (get-in x [:month-day :value])))
 
 (defn local-time-of
   ^LocalTime [x]
   (LocalTime/of
-    (get x :hour)
-    (get x :minute)
-    (get x :second)
-    (get x :second-nano)))
+    ^int (get x :day/hour)
+    ^int (get x :hour/minute)
+    ^int (get x :minute/second)
+    ^int (get x :second/nano)))
 
 (defn year-month-of
   ^YearMonth [x]

@@ -94,6 +94,8 @@
    (DateTimeFormatter/ofPattern x))
   (^DateTimeFormatter [x default]
    (if (or (nil? x)
+           (= :iso x)
+           (= :format/iso x)
            (= :format/default x))
      (fmt-of default)
      (fmt-of x))))
