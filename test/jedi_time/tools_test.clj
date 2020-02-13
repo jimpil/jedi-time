@@ -1,7 +1,7 @@
-(ns jedi-time.batteries-test
+(ns jedi-time.tools-test
   (:require [clojure.test :refer :all]
             [jedi-time.core :as jdt]
-            [jedi-time.datafied.batteries :as bt]
+            [jedi-time.datafied.tools :as bt]
             [clojure.datafy :as d]
             [jedi-time.units :as units])
   (:import (java.time ZonedDateTime ZoneId OffsetDateTime ZoneOffset)))

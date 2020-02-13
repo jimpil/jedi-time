@@ -1,4 +1,4 @@
-(ns jedi-time.datafied.batteries
+(ns jedi-time.datafied.tools
   (:require [jedi-time.protocols :as jp]
             [jedi-time.core :as core]
             [clojure.datafy :as d]

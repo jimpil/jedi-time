@@ -179,7 +179,7 @@ The composition of `jdt/undatafy` and `d/datafy`. Useful for re-obtaining `d/nav
 Self-explanatory package - start with `jedi-time.datafied.specs.core.clj`. Not connected to anything at runtime, but super useful for
 development, documentation, debugging etc.   
 
-### jedi-time.datafied.batteries
+### jedi-time.datafied.tools
 Top level namespace for interacting with datafied representations. 
 All functions in this namespace accept a map as the 1st arg (something datafied), 
 and return a new one. 
@@ -280,7 +280,7 @@ You can do the same with `:offset`.
 
 ### Randomly updating datafied representations 
 Avoid doing this for any purpose other than navigation. 
-Prefer shifting via the helpers in `jedi-time.datafied.batteries.clj`.
+Prefer shifting via the helpers in `jedi-time.datafied.tools.clj`.
 
 ## TL;DR 
 
