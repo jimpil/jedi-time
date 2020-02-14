@@ -1,6 +1,5 @@
 (ns jedi-time.datafied.specs.core
   (:require [clojure.spec.alpha :as s]
-            [jedi-time.core :as core]
             [jedi-time.datafied.specs
              [year   :as year]
              [month  :as month]
@@ -46,11 +45,15 @@
           :opt-un [::format/format]))
 ;-------------------------------------
 
+(s/def :year/day  ::year/length)
+(s/def :year/week #(<= 1 % 53))
+
 (s/def ::local-date
-  (s/merge ::week-day
-           ::month-day
+  (s/merge ::month-day
            ::year-month
-           (s/keys :opt-un [::year/year-week ::year/year-day])))
+           ;; week-day, year-week & year-day not needed for `undatafy`
+           (s/keys :opt-un [::week/week-day])
+           (s/keys :opt [:year/week :year/day])))
 ;--------------------------------------
 
 (s/def ::local-datetime
@@ -68,8 +71,11 @@
 (s/def ::zone
   (s/keys :req-un [::zone/zone]))
 
-(s/def ::zoned-datetime ;; offset is optional
-  (s/merge ::local-datetime ::zone (s/keys :opt-un ::offset)))
+(s/def ::zoned-datetime
+  (s/merge ::local-datetime
+           ::zone
+           ;; offset is not needed for `undatafy`
+           (s/keys :opt-un [::offset/offset])))
 ;--------------------------------------
 
 (s/def :epoch/second nat-int?)
