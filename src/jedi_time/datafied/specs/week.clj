@@ -11,4 +11,6 @@
 (s/def ::value #(<= 1 % 7))
 
 (s/def ::week-day
-  (s/keys :req-un [::value ::name]))
+  (s/keys :req-un [::value]
+          ;; weekday-name not needed for `undatafy`
+          :opt-un [::name]))

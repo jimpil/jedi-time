@@ -18,4 +18,6 @@
   (s/keys :req-un [:month-day/value]))
 
 (s/def ::month
-  (s/keys :req-un [::name ::value ::length]))
+  (s/keys :req-un [::value]
+          ;; month-name & length not needed for `undatafy`
+          :opt-un [::name  ::length]))

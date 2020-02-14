@@ -16,6 +16,7 @@
 
 (s/def ::offset
   (s/keys :req-un [::id]
+          ;; offset seconds & hours not needed for `undatafy`
           :opt-un [::seconds
                    ::hours
                    ::same]))

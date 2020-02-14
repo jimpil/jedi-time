@@ -6,4 +6,6 @@
 (s/def ::leap?  boolean?)
 
 (s/def ::year
-  (s/keys :req-un [::leap? ::value ::length]))
+  (s/keys :req-un [::value]
+          ;; leap? & length not needed for `undatafy`
+          :opt-un [::leap?  ::length]))
