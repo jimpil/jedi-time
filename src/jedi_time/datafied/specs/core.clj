@@ -69,7 +69,8 @@
 ;-------------------------------------
 
 (s/def ::zone
-  (s/keys :req-un [::zone/zone]))
+  (s/keys :req-un [::zone/zone]
+          :opt-un [::same]))
 
 (s/def ::zoned-datetime
   (s/merge ::local-datetime
@@ -91,5 +92,5 @@
                 :epoch/micro
                 :epoch/nano]
           :opt-un [::format/format
-                   ::zone
-                   ::offset]))
+                   ::zone/zone
+                   ::offset/offset]))
