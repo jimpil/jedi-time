@@ -385,7 +385,11 @@
           ret  {:second/nano second-nanos
                 :epoch/second epoch-second
                 :epoch/milli  epoch-milli
+                ;; Java-9 added micro precision
+                ;; (https://bugs.openjdk.java.net/browse/JDK-8068730)
                 :epoch/micro  epoch-micro
+                ;; some exotic Clocks even attempt to do nano - generally not useful and unreliable
+                ;; (https://jenetics.io/javadoc/jenetics/5.0/index.html?io/jenetics/util/NanoClock.html)
                 :epoch/nano   epoch-nano}]
       (with-meta ret
         {`jp/shift+ (fn [this n unit safe?] (internal/plus :time (undatafy this) unit n safe?))

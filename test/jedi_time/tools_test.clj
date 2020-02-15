@@ -1,7 +1,7 @@
 (ns jedi-time.tools-test
   (:require [clojure.test :refer :all]
             [jedi-time.core :as jdt]
-            [jedi-time.datafied.tools :as bt]
+            [jedi-time.datafied.tools :as tools]
             [clojure.datafy :as d]
             [jedi-time.units :as units])
   (:import (java.time ZonedDateTime ZoneId OffsetDateTime ZoneOffset)))
@@ -21,8 +21,8 @@
             datafied (d/datafy now)
             now-later (jdt/now! {:as t})
             datafied-later (d/datafy now-later)]
-        (is (bt/before? datafied datafied-later))
-        (is (bt/after? datafied-later datafied)))))
+        (is (tools/before? datafied datafied-later))
+        (is (tools/after? datafied-later datafied)))))
 
   (testing "Chrono comparison - year + month"
     (doseq [t [:year :year-month]]
@@ -30,8 +30,8 @@
             datafied (d/datafy now)
             now-later (jdt/now! {:as t})
             datafied-later (d/datafy now-later)]
-        (is (not (bt/before? datafied datafied-later)))
-        (is (not (bt/after? datafied-later datafied)))))
+        (is (not (tools/before? datafied datafied-later)))
+        (is (not (tools/after? datafied-later datafied)))))
     )
   )
 
@@ -42,8 +42,8 @@
             u (keys units/chrono-units)]
       (let [now (jdt/now! {:as t})
             datafied (d/datafy now)
-            modified-datafied (bt/shift+ datafied [4 u])
-            modified-datafied-back (bt/shift- modified-datafied [4 u])]
+            modified-datafied (tools/shift+ datafied [4 u])
+            modified-datafied-back (tools/shift- modified-datafied [4 u])]
         (is (= datafied modified-datafied-back)
             (format "%s doesn't match!" [t u]))
         (is (= now (jdt/undatafy (strip-meta modified-datafied-back)))
@@ -56,8 +56,8 @@
                     keys)] ;; weeks, months, years etc not supported for Instant
         (let [now (jdt/now! {:as :instant})
               datafied (d/datafy now)
-              modified-datafied (bt/shift+ datafied [4 u])
-              modified-datafied-back (bt/shift- modified-datafied [4 u])]
+              modified-datafied (tools/shift+ datafied [4 u])
+              modified-datafied-back (tools/shift- modified-datafied [4 u])]
           (is (= datafied modified-datafied-back)
               (format "%s doesn't match!" [:instant u]))
           (is (= now (jdt/undatafy (strip-meta modified-datafied-back)))
