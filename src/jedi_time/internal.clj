@@ -85,3 +85,23 @@
   (YearMonth/of
     ^int (get-in x [:year :value])
     ^int (get-in x [:month :value])))
+
+(defn dissoc-optional
+  [k m]
+  (case k
+    :month (update m k dissoc :length :name)
+    :year  (update m k dissoc :length :leap?)
+    :week-day (update m k dissoc :name)
+    :year-month (->> m
+                    (dissoc-optional :month)
+                    (dissoc-optional :year))
+    :local-time (dissoc m :second/milli :second/micro)
+    :local-date (dissoc m :year/week :year/day)
+    :local-datetime (->> m
+                        (dissoc-optional :local-time)
+                        (dissoc-optional :local-date))
+    :offset-datetime (update (dissoc-optional :local-datetime m)
+                             dissoc :seconds :hours)
+    :zoned-datetime (dissoc (dissoc-optional :local-datetime m) :offset)
+    :instant  (dissoc m :epoch/milli :epoch/micro :epoch/nano)
+    m))
