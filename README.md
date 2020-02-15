@@ -1,6 +1,6 @@
 # jedi-time
 
-![](jedi.png)
+![jedi-time-avatar](jedi.png)
 
 A tiny Clojure library designed to _complement_ the `java.time` API (introduced with Java 8).
 It exposes a handful of functions, and is mainly based on the `p/Datafiable` and `p/Navigable` protocols 
@@ -201,7 +201,7 @@ in which case may return nil.
 ``` 
 
 Round-tripping using the same amount of time is a no-op (will take you back to the map you started with). 
-Datafied representations of objects like `ZoneId` and `Offset` don't support this. 
+Datafied representations of objects like `ZoneId` and `Offset` (obviously) don't support this. 
 
 #### before?/after?
 Predicates for chronologically comparing two datafied representations (this, other). 
@@ -263,10 +263,22 @@ each taking one (String) or two (String, DateTimeFormatter) args.
 - parse-local-time
 - parse-year-month
 
+## REBL friendly 
+I am, by no means, a REBL-expert (only used it to test this project), but as far as I can tell datafied `java.time` 
+representations browse/navigate as expected. If you are a seasoned REBL user and find that something doesn't work as  
+you would expect, or is not intuitive, please do report it in an issue.   
+  
+My (potentially incomplete) understanding is that the `nav->` functionality only makes sense for keys that are present 
+in the map, and therefore visible on the right hand side. Keys that don't exist (e.g. `:format`) still navigate to the 
+corresponding thing, but any such key will always feel somewhat magical in the context of REBL (as they cannot be seen anywhere).
+
 ## Tips and tricks
 
 ### ZonableInstant
-Such a class doesn't exist. You can have an `Instant` or a `ZonedDateTime`. However, consider the following map:
+Such a class doesn't exist. You can have an `Instant` or a `ZonedDateTime`. 
+However, there are cases when you have a point-in-time on one hand (e.g. when a user logged in),
+and a zone on the other (the zone-id of the user). In some sense, you can keep those two separate
+and combine them at the same time. Consider the following map:
 
 ```clj
 {:second/nano ...
