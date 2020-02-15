@@ -177,7 +177,10 @@ The composition of `jdt/undatafy` and `d/datafy`. Useful for re-obtaining `d/nav
 
 ### jedi-time.datafied.specs
 Self-explanatory package - start with `jedi-time.datafied.specs.core.clj`. Not connected to anything at runtime, but super useful for
-development, documentation, debugging etc.   
+development, documentation, debugging etc. Specs typically follow the requirements of `jdt/undatafy`. 
+This means that if a map can be un-datafied correctly, then it also satisfies its spec (and vice-versa). 
+So there are essentially two ways to confirm whether a map is correct datafied representation or not - 
+a fully transparent one (the corresponding spec), and an opaque one (trying to `undatafy`).  
 
 ### jedi-time.datafied.tools
 Top level namespace for interacting with datafied representations. 
