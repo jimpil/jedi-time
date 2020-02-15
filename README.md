@@ -303,11 +303,15 @@ Prefer shifting via the helpers in `jedi-time.datafied.tools.clj`.
 
 - `(d/datafy x)` turns those 13 types into Clojure maps, and `jdt/undatafy` turns those (or meta-less mirrors of them) back into the right Java object.
 
-- These maps can be navigated (via `d/nav`) in ways that reflect the inner structure of the underlying Java objects. 
+- These maps can be navigated (via `d/nav`) in ways that reflect the inner structure of the underlying Java objects.
+ 
+- These maps make themselves useful by wrapping some of functionality of the underlying Java objects (formatting, shifting, comparing etc). 
 
 - Some extra navigation capabilities exist (beyond the contained keys). 
 
 - Some parsing helpers exist in `jedi-time.parse`.
+
+- Reflection-free
 
 ## License
 
