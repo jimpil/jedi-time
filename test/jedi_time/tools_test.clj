@@ -4,7 +4,7 @@
             [jedi-time.datafied.tools :as tools]
             [clojure.datafy :as d]
             [jedi-time.units :as units])
-  (:import (java.time ZonedDateTime ZoneId OffsetDateTime ZoneOffset)))
+  (:import (java.time ZonedDateTime ZoneId Instant OffsetDateTime ZoneOffset)))
 
 (defn- strip-meta
   [x]
@@ -32,6 +32,47 @@
             datafied-later (d/datafy now-later)]
         (is (not (tools/before? datafied datafied-later)))
         (is (not (tools/after? datafied-later datafied)))))
+    )
+
+  (testing "Instant equality between datetimes"
+    (doseq [t [:zoned-datetime
+               :offset-datetime
+               :local-datetime]]
+      (let [now (jdt/now! {:as t})
+            datafied (d/datafy now)
+            datafied-clone (strip-meta datafied)
+            now-later (jdt/now! {:as t})
+            datafied-later (d/datafy now-later)]
+        (is (tools/same-instant? datafied datafied-clone))
+        (is (not (tools/same-instant? datafied datafied-later)))))
+
+    (testing "Date equality"
+      (doseq [t [:instant :zoned-datetime :offset-datetime]]
+        (is (tools/same-date?
+              (d/datafy (jdt/now! {:as t}))
+              (d/datafy (jdt/now! {:as :local-date})))))
+
+      (is (tools/same-date?
+            (d/datafy (jdt/now! {:as :instant}))
+            (d/datafy (jdt/now! {:as :offset-datetime
+                                 :zone "Europe/Athens"}))))
+
+      (is (tools/same-date?
+            (d/datafy (jdt/now! {:as :offset-datetime}))
+            (d/datafy (jdt/now! {:as :zoned-datetime
+                                 :zone "Europe/Athens"}))))
+      )
+
+    (testing "Instant equality between translated instants"
+      (let [^Instant now (jdt/now! {:as :instant})
+            now-datafied (d/datafy now)
+            now-zoned (tools/at-zone now-datafied "Europe/Athens")
+            now-offseted (tools/at-offset now-datafied  "+02:00" )
+            datafied-zoned    (d/datafy now-zoned)
+            datafied-offseted (d/datafy now-offseted)]
+        (is (tools/same-instant? datafied-zoned datafied-offseted))
+        (is (tools/same-instant? datafied-zoned
+                                 (d/datafy (tools/at-offset now-datafied  "+02:00" :local))))))
     )
   )
 
@@ -69,31 +110,31 @@
   (testing "zone translation"
     (let [^ZonedDateTime now (jdt/now! {:as :zoned-datetime
                                         :zone "UTC"})
-          zone (-> now d/datafy (d/nav :zone nil))
+          now-datafied (d/datafy now)
+          zone (d/nav now-datafied :zone nil)
           ^ZonedDateTime now-athens (-> now
                                         d/datafy
                                         (d/nav :zone {:id "Europe/Athens"
                                                       :same :instant}))]
       (is (instance? ZonedDateTime now-athens))
       (is (instance? ZoneId zone))
-      (is (not= now now-athens))
-      (is (= (.toInstant now)
-             (.toInstant now-athens)))
+      (is (not= now now-athens)) ;; different zones
+      (is (tools/same-instant? now-datafied (d/datafy now-athens))) ;; same point-in-time
       ))
 
   (testing "offset translation"
     (let [^OffsetDateTime now (jdt/now! {:as :offset-datetime
                                          :zone "UTC"})
-          offset (-> now d/datafy (d/nav :offset nil))
+          now-datafied (d/datafy now)
+          offset (d/nav now-datafied :offset nil)
           ^OffsetDateTime now-plus2 (-> now
                                         d/datafy
                                         (d/nav :offset {:id "+02:00"
                                                         :same :instant}))]
       (is (instance? OffsetDateTime now-plus2))
       (is (instance? ZoneOffset offset))
-      (is (not= now now-plus2))
-      (is (= (.toInstant now)
-             (.toInstant now-plus2)))
+      (is (not= now now-plus2)) ;; different offsets
+      (is (tools/same-instant? now-datafied (d/datafy now-plus2))) ;; same point-in-time
       ))
 
   )

@@ -171,6 +171,7 @@
            (let [^YearMonth ym (undatafy (internal/dissoc-optional :year-month datafied))]
              (case k
                :format         (format* v "yyyy-MM" ym)
+               :instant        (-> datafied (d/nav :local-datetime v) d/datafy (d/nav :instant v))
                :local-date     (.atDay ym 1)
                :local-datetime (let [^LocalDate ld (d/nav datafied :local-date v)]
                                  (.atStartOfDay ld))
@@ -211,6 +212,7 @@
          `p/nav (fn [datafied k v]
                   (let [^LocalTime lt (undatafy (internal/dissoc-optional :local-time datafied))]
                     (case k
+                      :local-time lt
                       :format (format* v DateTimeFormatter/ISO_LOCAL_TIME lt)
                       (when (contains? datafied k) v))))})))
 
@@ -237,8 +239,10 @@
          (fn [datafied k v]
            (let [^LocalDate ld (undatafy (internal/dissoc-optional :local-date datafied))]
              (case k
-               :format     (format* v DateTimeFormatter/ISO_LOCAL_DATE ld)
-               :local-datetime      (.atStartOfDay ld)
+               :format (format* v DateTimeFormatter/ISO_LOCAL_DATE ld)
+               :local-datetime (.atStartOfDay ld)
+               :local-date ld
+               :instant (-> datafied (d/nav :local-datetime nil) d/datafy (d/nav :instant v))
                :offset (-> ld
                            (d/nav :local-datetime nil)
                            d/datafy
@@ -282,6 +286,8 @@
                  ld (.toLocalDate ldt)]
              (case k
                :format (format* v DateTimeFormatter/ISO_LOCAL_DATE_TIME ldt)
+               :instant (-> datafied (d/nav :offset v) d/datafy (d/nav :instant nil))
+               :local-datetime ldt
                :local-time lt
                :local-date ld
                :offset (let [^ZoneOffset zoff (if (string? v)
@@ -323,6 +329,8 @@
            (let [^OffsetDateTime odt (undatafy (internal/dissoc-optional :offset-datetime datafied))]
              (case k
                :format (format* v DateTimeFormatter/ISO_OFFSET_DATE_TIME odt)
+               :instant (.toInstant odt)
+               :offset-datetime odt
                :local-datetime (.toLocalDateTime odt)
                :offset (cond
                          (string? v) (ZoneOffset/of ^String v)
@@ -333,7 +341,6 @@
                                       :local   (.withOffsetSameLocal odt offset)
                                       :instant (.withOffsetSameInstant odt offset)
                                       offset)))
-               :instant (.toInstant odt)
                (-> odt
                    (.toLocalDateTime)
                    d/datafy
@@ -362,6 +369,8 @@
                   (let [^ZonedDateTime zdt (undatafy (internal/dissoc-optional :zoned-datetime datafied))]
                     (case k
                       :format (format* v DateTimeFormatter/ISO_ZONED_DATE_TIME zdt)
+                      :instant (.toInstant zdt)
+                      :zoned-datetime zdt
                       :offset-datetime (.toOffsetDateTime zdt)
                       :zone (cond
                               (string? v) (ZoneId/of v)
@@ -404,6 +413,7 @@
            (let [^Instant inst (undatafy (internal/dissoc-optional :instant datafied))]
              (case k
                :format (format* v DateTimeFormatter/ISO_INSTANT inst)
+               :instant inst
                :offset (let [v (or v (get datafied :offset))
                              ^ZoneOffset zo (if (string? v)
                                               (ZoneOffset/of ^String v)

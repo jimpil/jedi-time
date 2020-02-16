@@ -207,9 +207,23 @@ Round-tripping using the same amount of time is a no-op (will take you back to t
 Datafied representations of objects like `ZoneId` and `Offset` (obviously) don't support this. 
 
 #### before?/after?
-Predicates for chronologically comparing two datafied representations (this, other). 
+Predicates for chronologically comparing two datafied representations  
+of the same type (this, other). 
 Boils down to `this.isBefore(other)`, and `this.isAfter(other)`. Datafied representations 
 of objects like `ZoneId`, `Offset`, `Month` and `DayOfWeek` don't support this.
+
+#### same-instant?/date?
+Predicates for instant/date equality comparison between two datafied representations
+of **not** necessarily the same type.
+
+```clj
+(let [now-inst (d/datafy (jdt/now! {:as :instant})))
+      now-date (d/datafy (jdt/now! {:as :local-date})))]
+
+  (tools/same-instant? now-inst now-date)  => false
+  (tools/same-date?    now-inst now-date)  => true
+ )
+```
 
 #### at-zone/at-offset
 For datafied representations that naturally come with a zone/offset, 
@@ -296,6 +310,13 @@ You can do the same with `:offset`.
 ### Randomly updating datafied representations 
 Avoid doing this for any purpose other than navigation. 
 Prefer shifting via the helpers in `jedi-time.datafied.tools.clj`.
+
+### Traversing the graph
+Sometimes it is possible to skip levels when navigating, and other times it isn't. 
+For example, you can navigate to `:julian/day` directly from a datafied `ZonedDateTime`, 
+but **not** from a datafied `Instant`. This is intentional, as an `Instant` requires zone/offset 
+translation in order to obtain date field(s) awareness. So you must first upgrade it 
+(see `tools/at-zone` and `tools/at-offset`), and then skipping levels becomes possible.
 
 ## TL;DR 
 

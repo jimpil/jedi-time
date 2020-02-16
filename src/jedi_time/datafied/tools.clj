@@ -43,17 +43,61 @@
 
 (defn before?
   "Returns true if <this> datafied representation
-   is before the <other> - false otherwise."
+   is before the <other> - false otherwise.
+   Both arguments are expected to represent the same thing."
   [datafied other]
   (with-meta-check
     (jedi-time.protocols/before? datafied other)))
 
 (defn after?
   "Returns true if <this> datafied representation
-   is after the <other> - false otherwise."
+   is after the <other> - false otherwise.
+   Both arguments are expected to represent the same thing."
   [datafied other]
   (with-meta-check ;; has to be a fully qualified call
     (jedi-time.protocols/after? datafied other)))
+
+
+(defn same-instant?
+  "Returns true if the first two arguments represent exactly the same
+   point-in-time - false otherwise. First two arguments are not
+   expected to (necessarily) represent the same thing.
+   An offset can be provided as the 3rd arg, but will only be used
+   if needed (i.e. for upgrading to Instant)."
+  ([datafied other]
+   (same-instant? datafied other {:id "Z"}))
+  ([datafied other offset]
+   (let [this-instant  (with-meta-check
+                         (clojure.core.protocols/nav datafied :instant offset))
+         other-instant (with-meta-check
+                         (clojure.core.protocols/nav other :instant offset))]
+     (= this-instant other-instant))))
+
+(defn same-date?
+  "Returns true if the two datafied representations fall
+   under the same date (year/month/day) - false otherwise.
+   The two arguments are not expected to (necessarily)
+   represent the same thing."
+  [datafied other]
+  (let [di? (contains? datafied :epoch/second)
+        oi? (contains? other    :epoch/second)]
+    (if (or di? oi?)
+      (recur
+        (if di?
+          (d/datafy
+            (with-meta-check
+              (clojure.core.protocols/nav datafied :offset {:id "Z"})))
+          datafied)
+        (if oi?
+          (d/datafy
+            (with-meta-check
+              (clojure.core.protocols/nav other :offset {:id "Z"})))
+          other))
+      (let [this-date (with-meta-check
+                        (clojure.core.protocols/nav datafied :local-date nil))
+            other-date (with-meta-check
+                         (clojure.core.protocols/nav other :local-date nil))]
+        (= this-date other-date)))))
 
 (defn at-zone
   ""
