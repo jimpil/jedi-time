@@ -171,6 +171,7 @@
            (let [^YearMonth ym (undatafy (internal/dissoc-optional :year-month datafied))]
              (case k
                :format         (format* v "yyyy-MM" ym)
+               :year-month     ym
                :instant        (-> datafied (d/nav :local-datetime v) d/datafy (d/nav :instant v))
                :local-date     (.atDay ym 1)
                :local-datetime (let [^LocalDate ld (d/nav datafied :local-date v)]
@@ -251,7 +252,6 @@
                            (d/nav :local-datetime nil)
                            d/datafy
                            (d/nav :zone v))
-               :year-month (YearMonth/of (.getYear ld) (.getMonth ld))
                :julian/day          (.getLong ld JulianFields/JULIAN_DAY)
                :julian/modified-day (.getLong ld JulianFields/MODIFIED_JULIAN_DAY)
                :julian/rata-die     (.getLong ld JulianFields/RATA_DIE)
@@ -427,7 +427,8 @@
                            ^ZoneId zid (if (string? v)
                                          (ZoneId/of v)
                                          (undatafy {:zone v}))]
-                       (ZonedDateTime/ofInstant inst zid)))))})))
+                       (ZonedDateTime/ofInstant inst zid))
+               (get datafied k))))})))
   )
 
 (defn now!

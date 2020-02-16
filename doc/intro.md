@@ -1,295 +1,226 @@
 # Introduction to jedi-time
 
-We will look at each `java.time` class separately, showing what map it datafies to, and _where_ that map can be navigated to (next section). Then we wil look at _how_ to achieve that (the last argument to `nav`) per key.
+We will look at each `java.time` class separately, showing its data representation, and _where_ that can be navigated to. 
 
-## datafy and nav keys
 
-The full set of `nav` keys supported are the following:
+## datafy/nav
 
-- :format 
-- :before? 
-- :after?
-- :to
-- :julian
-- :at-zone
-- :at-offset
-- :+ 
-- :-
+
+### Year
+It datafies to the following map, which doesn't navigate to anything other than the top-level key (`:year`).
+
+```clj
+(d/datafy (Year/of 2020))
+=>
+{:year {:value 2020 
+        :length 366
+        :leap? true}}
+```
 
 ### Month 
-This one is probably the least rich type. It datafies to the following map, which doesn't navigate to anything.
+It datafies to the following map, which doesn't navigate to anything other than the top-level key (`:month`).
 
 ```clj
 (d/datafy (Month/of 2))
 =>
-{:month {:name "FEBRUARY", 
-         :value 2, 
-         :length 28}} ;; length of a plain month isn't necessarily correct (leap-year precision is impossible) 
+{:month {:name "FEBRUARY" 
+         :value 2 
+         ;; length of a plain month isn't necessarily correct 
+         :length 28}} 
 ```
 
 ### DayOfWeek 
-Similar to `Month`, this class datafies to the following map and doesn't navigate to anything. 
+Similarly to `Month`, this class datafies to the following map and doesn't navigate to anything 
+other than the top-level key (`:week-day`).
 
 ```clj
 (d/datafy (DayOfWeek/of 2))
 => 
-{:week {:day {:name "TUESDAY", 
-              :value 2}}}
+{:week-day {:name "TUESDAY" 
+            :value 2}}
 
 ```
 
 ### YearMonth
-Datafies the `Month` object found inside this (see above), updates its `:length` to the correct value 
-(given the year), and wraps it with a map containing the `:year` details.
+Datafies the `Year`/`Month` objects and merges them, while correcting the `[:month :length]`.
 
 ```clj
 (d/datafy (YearMonth/of 2020 2))
 =>
-{:year 
-  {:month {:name "FEBRUARY", 
-           :value 2, 
-           :length 29}, ;; length of a year-month is correct 
-  :length 366, 
-  :leap? true, 
-  :value 2020}}
+{:year {:length 366 
+        :leap? true 
+        :value 2020}
+ :month {:name "FEBRUARY" 
+         :value 2 
+         ;; length of month is correct here
+         :length 29}} 
 ```
-The returned map (representing a `YearMonth`) can now be navigated to the following keys: 
+The returned map can be navigated to its top-level keys (returning `Year` and `Month` respectively), 
+but also to the following extra keys: 
 
-- :format 
-- :before? 
-- :after?
-- :to
-- :+ 
-- :-
+- :format - returns a String per `v` (the formatter pattern - defaults to `"yyyy-MM"` as there is no ISO variant for this)
+- :year-month - returns itself as an object (`v` is ignored)
+- :instant - returns an `Instant` at the start of the first day of this month in this year (`v` is ignored)
+- :local-date - returns a `LocalDate` at the first day of this month in this year (`v` is ignored)
+- :local-datetime - returns an `LocalDateTime` at the start of the first day of this month in this year (`v` is ignored)
+- :offset - returns an `OffsetDateTime` at the start of the first day of this month in this year, per `v` (the offset data)
+- :zone - returns an `ZonedDateTime` at the start of the first day of this month in this year, per `v` (the zone data)
+
+As you can see, most of these are upgrade paths, and there are assumption(s) baked-in. 
+Moreover, the last two (`:zone` and `:offset`) are arguably not useful, and even potentially confusing, 
+but they are there to complete the graph. Be cautious and aware... 
 
 ### LocalTime
 
-Returns a map with 4 keys, each mapping to their immediate denominations, in order to form nesting levels 
-of the form "hour-of-day", "minute-of-hour" etc.
+Datafies to the following (flat) map:
 
 ```clj
-(d/datafy (LocalTime/now)) ;; "14:16:10.001534"
+(d/datafy (LocalTime/now)) ;; "14:40:45.652059"
 => 
-{:day    {:hour 14}, 
- :hour   {:minute 16}, 
- :minute {:second 10}, 
- :second {:nano 1534000, 
-          :milli 1, 
-          :micro 1534}}
+{:day/hour 14 
+ :hour/minute 40 
+ :minute/second 45 
+ :second/nano 652059000 
+ :second/milli 652 
+ :second/micro 652059}
 ```
-The returned map (representing a `LocalTime`) can now be navigated to the following keys: 
+The returned map can be navigated to its top-level keys (returning numbers), 
+but also to the following extra keys: 
 
-- :format 
-- :before? 
-- :after?
-- :+ 
-- :-
+- :format - returns a String per `v` (the formatter pattern - defaults to `"ISO_LOCAL_TIME`)
+- :local-time - returns itself as an object (`v` is ignored)
 
 ### LocalDate
 
-Datafies the `YearMonth` and `DayOfWeek` objects found-in/constructed-from this, and merges the results. 
+Datafies the `YearMonth` and `DayOfWeek` objects, and merges the results, 
+while adding `:year/day`, and `:year/week`
 
 ```clj
-(d/datafy (LocalDate/now)) ;; "2020-01-31"
+(d/datafy (LocalDate/now)) ;; "2020-02-16"
 => 
-{:week {:day {:name "FRIDAY", 
-              :value 5}},
- :year {:month {:name "JANUARY", 
-                :value 1, 
-                :length 31, 
-                :day 31}, 
-       :length 366, 
-       :leap? true, 
-       :value 2020, 
-       :week 5}}
-
+{:week-day {:name "SUNDAY" 
+            :value 7}
+ :month {:name "FEBRUARY"
+         :value 2 
+         :length 29}
+ :year {:value 2020 
+        :leap? true 
+        :length 366}
+ :month-day {:value 16}
+ :year/week 7
+ :year/day 47}
 ```
-The returned map (representing a `LocalDate`) can now be navigated to the full set of `nav` 
-keys mentioned earlier, **except**  `:at-zone` and `:at-offset`. 
-
+The returned map can be navigated to its top-level keys (returning objects or numbers),
+ but also to the following extra keys:
+ 
+- :format - returns a String per `v` (the formatter pattern - defaults to `ISO_LOCAL_DATE`)
+- :instant - returns an `Instant` at the start of this day, per `v` (the offset data)
+- :local-date - returns itself as an object (`v` is ignored)
+- :local-datetime - returns an `LocalDateTime` at the start of this day (`v` is ignored)
+- :offset - returns an `OffsetDateTime` at the start of this day, per `v` (the offset data)
+- :zone - returns an `ZonedDateTime` at the start of this day, per `v` (the zone data)
+- :year-month - returns a `YearMonth` object (`v` is ignored) - this is a downgrade!
+- :julian/day - returns the `JULIAN_DAY` (`v` is ignored)
+- :julian/modified-day - returns the `MODIFIED_JULIAN_DAY` (`v` is ignored)
+- :julian/rata-die - returns the `RATA_DIE` (`v` is ignored)
 
 ### LocalDateTime
+Datafies the `LocalDate` and `LocalTime` objects and merges them.
 
 ```clj
-(d/datafy (LocalDateTime/now)) ;; "2020-01-31T14:47:13.453314"
+(d/datafy (LocalDateTime/now)) ;; "2020-02-16T14:57:37.770679"
 => 
-{:day    {:hour 14},
- :hour   {:minute 47},
- :minute {:second 13},
- :second {:nano 453314000, 
-          :milli 453, 
-          :micro 453314},
- :week {:day {:name "FRIDAY", 
-              :value 5}},
- :year {:month {:name "JANUARY", 
-                :value 1, 
-                :length 31, 
-                :day 31},
-        :length 366,
-        :leap? true,
-        :value 2020,
-        :week 5,
-        :day 31}}
+{:month {:name "FEBRUARY" 
+         :value 2
+         :length 29}
+ :year {:value 2020 
+        :leap? true 
+        :length 366}
+ :week-day {:name "SUNDAY" 
+            :value 7}
+ :month-day {:value 16}
+ :hour/minute 57
+ :minute/second 37
+ :second/micro 770679
+ :second/nano 770679000
+ :second/milli 770
+ :day/hour 14
+ :year/day 47
+ :year/week 7}
 ```
-The returned map (representing a `LocalDateTime`) can now be navigated to the full set of `nav` 
-keys mentioned earlier, **except**  `:at-zone` and `:at-offset`. 
+The returned map can be navigated to its top-level keys, 
+but also to the following extra keys: 
 
+- :format - returns a String per `v` (the formatter pattern - defaults to `ISO_LOCAL_DATE_TIME`)
+- :instant - returns an `Instant` per `v` (the offset data)
+- :local-date - returns an `LocalDate` object - this is a downgrade!
+- :local-datetime - returns itself as an object (`v` is ignored) 
+- :offset - returns an `OffsetDateTime` per `v` (the offset data)
+- :zone - returns an `ZonedDateTime` per `v` (the zone data)
+
+In addition, any non-overlapping keys at _lower_ levels (e.g. local-date/time) are also reachable from here.
+For example, all the `:julian/*` keys from `LocalDate`, or the individual time fields from `LocalTime` (e.g. `:day/hour`). 
 
 ### OffsetDateTime
-Constructs a LocalDateTime from this, datafies it (see above), and adds offset information.
+Constructs a `LocalDateTime` from this, datafies it (see above), and merges offset information (see below).
 
 ```clj
-(d/datafy (OffsetDateTime/now)) ;; "2020-01-31T14:59:19.243826Z"
-=> 
-{:day    {:hour 14},
- :hour   {:minute 59},
- :minute {:second 19},
- :second {:nano 243826000, :milli 243, :micro 243826},
- :week {:day {:name "FRIDAY", 
-              :value 5}},
- :year {:month {:name "JANUARY", 
-                :value 1, 
-                :length 31, 
-                :day 31},
-        :length 366,
-        :leap? true,
-        :value 2020,
-        :week 5,
-        :day 31},
- :offset {:id "Z", 
-          :seconds 0, 
+{:offset {:id "Z" 
+          :seconds 0 
           :hours 0.0}}
 ```
-The returned map (representing an `OffsetDateTime`) can now be navigated to the full set of `nav` 
-keys mentioned earlier. 
+The returned map can be navigated to its top-level keys, 
+but also to the following extra keys:
+
+- :format - returns a String per `v` (the formatter pattern - defaults to `ISO_OFFSET_DATE_TIME`)
+- :instant - returns an `Instant` (`v` is ignored)
+- :offset-datetime - returns itself as an object (`v` is ignored) 
+- :local-datetime - returns a `LocalDateTime` object - this is a downgrade!
+- :offset - translates this per `v` (the offset data) - returns `OffsetDateTime`
+- :zone - translates this per `v` (the zone data) - returns `ZonedDateTime`
+
+In addition, any non-overlapping keys at _lower_ levels (e.g. local-date/time) are also reachable from here.
+For example, all the `:julian/*` keys from `LocalDate`, or the individual time fields from `LocalTime` (e.g. `:day/hour`). 
 
 ### ZonedDateTime
-Same as `OffsetDateTime`, but adds a `:zone` key.
+Same as `OffsetDateTime` (see above), this time adding a `:zone` key too (see below).
 
 ```clj
-(d/datafy (ZonedDateTime/now)) ;; "2020-01-31T15:05:22.129798Z[Europe/London]"
-=> 
-{:day    {:hour 15},
- :hour   {:minute 5},
- :minute {:second 22},
- :second {:nano 129798000, 
-          :milli 129, 
-          :micro 129798},
- :week {:day {:name "FRIDAY", 
-              :value 5}},
- :year {:month {:name "JANUARY", 
-                :value 1, 
-                :length 31, 
-                :day 31},
-        :length 366,
-        :leap? true,
-        :value 2020,
-        :week 5,
-        :day 31},
- :offset {:id "Z", 
-          :seconds 0, 
-          :hours 0.0},
- :zone {:id "Europe/London"}}
+{:zone {:id "Europe/London"}}
 ```
-The returned map (representing an `ZonedDateTime`) can now be navigated to the full set of `nav` 
-keys mentioned earlier. 
 
+The returned map can be navigated to its top-level keys, 
+but also to the following extra keys:
+
+- :format - returns a String per `v` (the formatter pattern - defaults to `ISO_ZONED_DATE_TIME`)
+- :instant - returns an `Instant` (`v` is ignored)
+- :offset-datetime - returns itself as an object (`v` is ignored) 
+- :local-datetime - returns a `LocalDateTime` object - this is a downgrade!
+- :offset - translates this per `v` (the offset data) - returns `OffsetDateTime`
+- :zone - translates this per `v` (the zone data) - returns `ZonedDateTime`
+
+In addition, any non-overlapping keys at _lower_ levels (e.g. local-date/time) are also reachable from here.
+For example, all the `:julian/*` keys from `LocalDate`, or the individual time fields from `LocalTime` (e.g. `:day/hour`). 
 
 ### Instant
-Datafies to a map of two keys - `:epoch` and `:second`.
+Datafies to a (flat) map:
 
 ```clj
 (d/datafy (Instant/now))
 =>
-{:second {:nano 609043000}, ;; nano of second
- :epoch {:second 1580483274, 
-         :milli 1580483274609, 
-         :micro 1580483274609043, 
-         :nano 1580483274609043000}}
- 
+{:second/nano 891207000
+ :epoch/second 1581866760
+ :epoch/milli 1581866760891
+ :epoch/micro 1581866760891207
+ :epoch/nano 1581866760891207000}
 ```
-The returned map (representing an `Instant`) can now be navigated to the full set of `nav` 
-keys mentioned earlier, **except**  `:at-zone`, `:at-offset` and `:julian`. 
+The returned map can be navigated to its top-level keys (returning numbers), 
+but also to the following extra keys:
 
-## nav values
-
-This section documents the last argument to `nav` (given that the first two args were explained in the previous section).
-
-### :format (returns a String)
-
-- anything other than a datafied `YearMonth` - the keyword `:iso` (default), a `DateTimeFormatter` instance, or a `String` pattern 
-- a datafied `YearMonth` - a `DateTimeFormatter` instance, or a `String` pattern (defaults to "yyyy-MM")
-
-### :before?/:after? (return true/false)
-
-A datafied instance of the same or similar type (e.g. `ZonedDateTime` vs `OffsetDateTime`).
-
-### :at-zone
-
-An instance of `ZoneId`, or a String describing one (defaults to system zone).
-In the case of an `ZonedDateTime`, it should be a 2-element vector, with the aforementioned zone-id as the first element,
-and `:same-instant` (default) or `:same-local`, as the second.
-
-### :at-offset
-
-An instance of `ZoneOffset`, or a String describing one (defaults to system offset).
-In the case of an `OffsetDateTime`, it should be a 2-element vector, with the aforementioned offset-id as the first element,
-and `:same-instant` (default) or `:same-local`, as the second.
-
-### :julian (returns Julian fields) 
-One of the following keywords:
-
-- :day 
-- :modified-day
-- :rata-die
-
-### :+/:- (returns a shifted version of the same type)
-A two-element vector. First element is expected to be a positive integer, followed by one of the following keywords:
-
-- :nanos
-- :micros
-- :millis  
-- :seconds 
-- :minutes 
-- :hours   
-- :days    
-- :half-days
-- :weeks 
-- :months 
-- :years  
-- :decades 
-- :centuries
-- :millenia 
-
-### :to
-This is a bit more complicated and so left last. We have to look at each class separately again:
-
-#### Instant 
-Datafied instances of `Instant` can `(nav datafied :to ...)` pretty much anything, with the last argument expected to be a 2-element vector.
-First element is expected to be one of (`:local-time`, `:local-date`, `:local-datetime`, `offset-datetime`, `zoned-datetime`), 
-whereas the second a zone-id - the keyword `:system` (default), a String, or an actual `ZoneId` instance. 
-
-#### ZonedDateTime
-Datafied instances of `ZonedDateTime` can `(nav datafied :to ...)` 3 things, with the last argument expected to be one of 
-(`:local-datetime`, `:offset-datetime`, `:instant`). 
-
-#### OffsetDateTime
-Datafied instances of `OffsetDateTime` can `(nav datafied :to ...)` 2 things, with the last argument expected to be one of 
-(`:local-datetime`, `:instant`).
-
- #### LocalDateTime
- Datafied instances of `LocalDateTime` can `(nav datafied :to ...)` 3 things, with the last argument expected to be one of 
- (`:local-date`, `:local-time`, `[:instant <offset-id>]`). The <offset-id> can be `:system` (default), a String, or an actual `ZoneOffset` instance.
- 
- #### LocalDate
- Datafied instances of `LocalDate` can `(nav datafied :to ...)` 3 things, with the last argument expected to be one of 
- (`:week-day`, `:year-month`, `[:instant <offset-id>]`). In the case of navigating to Instant, `.atStartOfDay()` will be
- called to obtain the `LocalDateTime`. The <offset-id> can be `:system` (default), a String, or an actual `ZoneOffset` instance.
- 
- #### YearMonth
- Datafied instances of `YearMonth` can `(nav datafied :to [:instant <offset-id>])` only. 
- The <offset-id> can be `:system` (default), a String, or an actual `ZoneOffset` instance.
- The Instant returned will be at the first day of the year (`.atDay(1)`), and at start of day (`.atStartOfDay()`).
+- :format - returns a String per `v` (the formatter pattern - defaults to `ISO_INSTANT`)
+- :instant - returns itself as an object (`v` is ignored) 
+- :offset - translates this per `v` (the offset data) - returns `OffsetDateTime`
+- :zone - translates this per `v` (the zone data) - returns `ZonedDateTime`
 
 ## Invalid arguments
 How `jedi-time` reacts to keys/values it doesn't recognise (passed mainly to `d/nav`), is controlled by the dynamic Var `jedi-time.core/invalid!`.
