@@ -118,17 +118,6 @@ Given the above data representation, we can navigate to a bunch of things
   (d/nav datafied :format "yy-MM-dd") =>  "20-01-29"
   (d/nav datafied :instant nil)       =>  #object[java.time.Instant 0x19ca0015 "2020-01-29T08:37:31.737789Z"]
  );; 
-```
-You can navigate to some (chronologically) modified, or alternate version (where supported).
-
-```clj
-(d/nav datafied :+ [3 :hours])
-(d/nav datafied :- [2 :days]) ;; will correctly use Period (as opposed to Duration)
-
-;;this may promote the types
-(d/nav datafied :at-zone   ["Europe/London" :same-instant])
-(d/nav datafied :at-offset ["+01:00"        :same-local])  
-```
 
 You can downgrade (by giving up some information), or upgrade (by making some assumptions) the datafied representation: 
 
