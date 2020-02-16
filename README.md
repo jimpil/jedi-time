@@ -118,6 +118,7 @@ Given the above data representation, we can navigate to a bunch of things
   (d/nav datafied :format "yy-MM-dd") =>  "20-01-29"
   (d/nav datafied :instant nil)       =>  #object[java.time.Instant 0x19ca0015 "2020-01-29T08:37:31.737789Z"]
  );; 
+```
 
 You can downgrade (by giving up some information), or upgrade (by making some assumptions) the datafied representation: 
 
