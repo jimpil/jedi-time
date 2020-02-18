@@ -277,7 +277,7 @@ you would expect, or is not intuitive, please do report it in an issue.
   
 My (potentially incomplete) understanding is that the `nav->` functionality only makes sense for keys that are present 
 in the map, and therefore visible on the right hand side. Keys that don't exist (e.g. `:format`) still navigate to the 
-corresponding thing, but any such key will always feel somewhat magical in the context of REBL (as they cannot be seen anywhere).
+corresponding thing, but any such key will always feel somewhat magical in the context of REBL (as it cannot be seen anywhere).
 
 ## Tips and tricks
 
