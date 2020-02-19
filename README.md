@@ -25,16 +25,17 @@ the conventions/idioms introduced are sound and are consistently followed, and g
 ## Conventions/Semantics
 
 ### datafy
-In its original conception `jedi-time` used map nesting in order to mirror the hierarchical nature of temporal fields.
-This doesn't play very well with `nav`, and so the datafication model is now flatter. Instead of nesting, a composite object
+In its original conception `jedi-time` used extensive map nesting in order to mirror the hierarchical nature of temporal fields.
+This kind of nesting wasn't playing very well with `nav`, and so the datafication model is now a bit flatter. Instead of nesting, a composite object
 will contain more than one top-level keys. The simplest example to illustrate this is by comparing a `Year` VS a `Month` VS a `YearMonth`. 
 In the original model (release 0.1.4 only), the latter would have a single `:year` key and a `[:year :month]` path, whereas now there will be
 two top-level keys (`:year` and `:month`), whose combination represents the (datafied) `YearMonth`. Similarly, a datafied `LocalDateTime`
-will contain two top-level keys (`:local-date` and `:local-time`). This facilitates intuitive REBL navigation.
+will contain two top-level keys (`:local-date` and `:local-time`). This facilitates intuitive/consistent navigation (see below).
 
 ### nav 
-Navigation may lead you to `java.time` objects (that can be further datafied, navigated and so on), or base values (typically Number/String)
-It's important to note that navigation through an existing key pays attention not only to the key being navigated (2nd arg), 
+Navigation through _non-namespaced_ keys will lead you to `java.time` objects (that can be further datafied, navigated, and so on).
+Navigation through _namespaced_ keys will lead you to base values (typically Number/String).
+It's important to note that navigation through existing keys pays attention not only to the key being navigated (2nd arg), 
 but also to the value (3rd arg). This basically means that navigating to an altered value will return an altered object, 
 and so care needs to be taken when updating (or adding/removing for that matter) keys, as it does affect navigation. 
 
@@ -74,32 +75,32 @@ Ok, so you have a `java.time` object - what can you do with it? The obvious thin
 
 (d/datafy (jdt/now! {:as :zoned-datetime})) ;; datafy an instance of ZonedDateTime
 => 
-{:local-time {:hour 10 
-              :minute 2 
-              :second 52 
-              :second/nano 990782000 
-              :second/milli 990 
-              :second/micro 990782}
- :local-date {:week-day {:name "WEDNESDAY" 
-                         :value 3}
-              :month {:name "FEBRUARY" 
-                      :value 2
-                      :length 29}
-              :year {:value 2020 
-                     :leap? true 
-                     :length 366}
-              :month-day {:value 19}
-              :year/week 8   ;; week of year
-              :year/day 50}  ;; day of year
- :offset {:id "Z" 
-          :seconds 0 
-          :hours 0.0}
- :zone {:id "Europe/London"}}          
+{:local-date {:week-day #:day{:name "WEDNESDAY" 
+                              :value 3}
+              :month #:month{:name "FEBRUARY" 
+                             :value 2 
+                             :length 29 
+                             :day 19}
+              :year #:year{:value 2020 
+                           :leap? true 
+                           :length 366 
+                           :week 8 
+                           :day 50}}
+ :local-time {:day/hour 16
+              :hour/minute 32
+              :minute/second 42
+              :second/nano 428017000
+              :second/milli 428
+              :second/micro 428017}  ;; micro-precision on Java-9 and above
+ :offset #:offset{:id "Z" 
+                  :seconds 0 
+                  :hours 0.0}
+ :zone #:zone{:id "Europe/London"}}         
 
 (class *1)
 => clojure.lang.PersistentArrayMap
 ```
-This is the object represented as data.
+This is the (richest possible) object represented as data. 
 This alone, opens up a world of opportunities, but wait there is more...
 
 Given the above data representation, we can navigate to a bunch of things 
@@ -108,10 +109,10 @@ Given the above data representation, we can navigate to a bunch of things
 ```clj
 (let [datafied (d/datafy (jdt/now! {:as :zoned-datetime}))] 
   
-  (d/nav datafied :format :iso)       =>  "2020-01-29T08:37:31.737789Z[Europe/London]"
-  (d/nav datafied :format "yy-MM-dd") =>  "20-01-29"
-  (d/nav datafied :instant nil)       =>  #object[java.time.Instant 0x19ca0015 "2020-01-29T08:37:31.737789Z"]
- );; 
+  (d/nav datafied :format :iso)       ;; =>  "2020-01-29T08:37:31.737789Z[Europe/London]"
+  (d/nav datafied :format "yy-MM-dd") ;; =>  "20-01-29"
+  (d/nav datafied :instant nil)       ;; =>  #object[java.time.Instant 0x19ca0015 "2020-01-29T08:37:31.737789Z"]
+ ) 
 ```
 
 You can downgrade (by giving up some information), or upgrade (by making some assumptions) the datafied representation: 
@@ -135,9 +136,9 @@ You can downgrade (by giving up some information), or upgrade (by making some as
   (d/nav (assoc datafied :zone "Europe/London") :zone nil)       ;; zone as String works     
   ;; => #object[java.time.ZonedDateTime 0x671baa90 "2020-02-11T21:34:55.558861Z[Europe/London]"]
   
-  (d/nav (assoc datafied :zone {:id "Europe/London"}) :zone nil) ;; zone as data works
+  (d/nav (assoc datafied :zone {:zone/id "Europe/London"}) :zone nil) ;; zone as data works
   ;; => #object[java.time.ZonedDateTime 0x671baa90 "2020-02-11T21:34:55.558861Z[Europe/London]"]
- );; this is super useful for storing/commnicating essentially compressed zoned/offset-datetimes (an `Instant` carrying a `:zone`/`offset`).  
+ );; this is super useful for storing/commnicating essentially compressed zoned/offset-datetimes (an `Instant` carrying a `:zone`/`:offset`).  
 
 (let [datafied (d/datafy (jdt/now! {:as :local-date}))]
   ;; upgrading (assuming start-of-day)
@@ -179,11 +180,11 @@ in which case may return nil.
 
 ```clj
 (let [datafied (d/datafy (jdt/now! {:as :local-datetime}))]
-  (get-in datafied [:week-day :value])        ;; => 3 
-  (:day/hour datafied)                        ;; => 17
+  (get-in datafied [:local-date :week-day :day/value])        ;; => 3 
+  (get-in datafied [:local-time :day/hour])                   ;; => 17
   
-  (:day/hour (bt/shift+ datafied [4 :hours]))                ;; => 21 (17 + 4)
-  (get-in (bt/shift+ datafied [2 :days]) [:week-day :value]) ;; => 5 (3 + 2)
+  (get-in (bt/shift+ datafied [4 :hours]) [:local-time :day/hour]) ;; => 21 (17 + 4)
+  (get-in (bt/shift+ datafied [2 :days]) [:local-date :week-day :day/value]) ;; => 5 (3 + 2)
  ) ;; ;; care has been taken to use Period VS Duration correctly depending on the object/unit at hand.
 ``` 
 
@@ -201,11 +202,11 @@ Predicates for instant/date equality comparison between two datafied representat
 of **not** necessarily the same type.
 
 ```clj
-(let [now-inst (d/datafy (jdt/now! {:as :instant})))
-      now-date (d/datafy (jdt/now! {:as :local-date})))]
+(let [now-inst (d/datafy (jdt/now! {:as :instant}))
+      now-date (d/datafy (jdt/now! {:as :local-date}))]
 
-  (tools/same-instant? now-inst now-date)  => false
-  (tools/same-date?    now-inst now-date)  => true
+  (tools/same-instant? now-inst now-date)  ;; => false
+  (tools/same-date?    now-inst now-date)  ;; => true
  )
 ```
 
@@ -223,7 +224,7 @@ For instance, consider a datafied `ZonedDateTime` with an extra key:
 ```clj
 (-> (ZonedDateTime/now (ZoneId/of "US/Pacific"))
     d/datafy
-    (assoc-in [:zone :id] "Europe/Athens") ;; update the zone
+    (assoc-in [:zone :zone/id] "Europe/Athens") ;; update the zone
     (assoc-in [:zone :same] :instant)      ;; provide a tranlation context for navigating to the new zone
     (d/nav :zone nil) ;; in the context of REBL the last arg wouldn't be nil 
     d/datafy          ;; datafying a brand new ZonedDateTime object
@@ -235,7 +236,7 @@ For instance, consider a datafied `ZonedDateTime` with an extra key:
 
 (-> (ZonedDateTime/now (ZoneId/of "US/Pacific"))
     d/datafy
-    (d/nav :zone {:id "Europe/Athens" :same :instant}) ;; the value we're providing doesn't have to match what's inside the map
+    (d/nav :zone {:zone/id "Europe/Athens" :same :instant}) ;; the value we're providing doesn't have to match what's inside the map
     d/datafy
     (d/nav :format :iso))
 
@@ -245,7 +246,7 @@ For instance, consider a datafied `ZonedDateTime` with an extra key:
 
 (-> (ZonedDateTime/now (ZoneId/of "US/Pacific"))
     d/datafy
-    (d/nav :zone {:id "Europe/Athens"})) ;; no :same key - no translation
+    (d/nav :zone {:zone/id "Europe/Athens"})) ;; no :same key - no translation
 
 => #object[java.time.ZoneRegion 0x6c3eec0e "Europe/Athens"]
 
@@ -271,7 +272,7 @@ you would expect, or is not intuitive, please do report it in an issue.
   
 My (potentially incomplete) understanding is that the `nav->` functionality only makes sense for keys that are present 
 in the map, and therefore visible on the right hand side. Keys that don't exist (e.g. `:format`) still navigate to the 
-corresponding thing, but any such key will always feel somewhat magical in the context of REBL (as it cannot be seen anywhere).
+corresponding thing, but any such key will always feel somewhat magical in the context of `REBL` (as it cannot be seen anywhere).
 
 ## Tips and tricks
 
@@ -284,7 +285,7 @@ and combine them at the same time. Consider the following map:
 ```clj
 {:second/nano ...
  :epoch/second ...
- :zone {:id ...}} ;; this map-entry could come from anywhere and doesn't affect anything other than `nav`
+ :zone {:zone/id ...}} ;; this map-entry could come from anywhere and doesn't affect anything other than `nav`
 ```   
 This is a perfectly valid `Instant` (i.e. it satisfies its spec and un-datafies correctly), 
 but in terms of navigation it kind of resembles a `ZonedDateTime`. In fact, the `:zone` entry 

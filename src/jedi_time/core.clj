@@ -29,27 +29,23 @@
   (if-let [epoch-second (:epoch/second x)] ;; fast path
     (Instant/ofEpochSecond epoch-second (:second/nano x))
 
-    (let [ld (contains? x :local-date)
-          lt (contains? x :local-time)
-          ;y?  (contains? x :year)
-          ;m?  (contains? x :month)
-          ;dh? (some? (get-in  x [:local-time :hour]))
-          ;ym? (and y? m?)
-          ]
+    (let [ld? (contains? x :local-date)
+          lt? (contains? x :local-time)
+          ldt? (and ld? lt?)]
 
-      (if-let [zone-id (and ld lt (get-in x [:zone :zone/id]))]
+      (if-let [zone-id (and ldt? (get-in x [:zone :zone/id]))]
         (let [zone (ZoneId/of zone-id)
               zone-rules (.getRules zone)
               ldt (internal/local-datetime-of x)
               offset (.getOffset zone-rules ldt)]
           (ZonedDateTime/ofStrict ldt offset zone))
 
-        (if-let [offset-id (and ld lt (get-in x [:offset :offset/id]))]
+        (if-let [offset-id (and ldt? (get-in x [:offset :offset/id]))]
           (OffsetDateTime/of
             (internal/local-datetime-of x)
             (ZoneOffset/of ^String offset-id))
 
-          (if (and ld lt)
+          (if ldt?
             (internal/local-datetime-of x)
 
             (if (and (contains? x :month)
@@ -67,8 +63,7 @@
                            (contains? x :month))
                     (internal/year-month-of x)
 
-                    (if-let [yv (and (not (contains? x :month))
-                                     (get x :year/value))]
+                    (if-let [yv (get x :year/value)]
                       (Year/of yv)
 
                       (if-let [mv (get x :month/value)]
@@ -245,16 +240,14 @@
           year    (.getYear ld)
           month-day (MonthDay/of month (.getDayOfMonth ld))
           ym      (YearMonth/of year month)
-          ret     (merge-with merge
-                              {:week-day (d/datafy weekday)
-                               :month    (d/datafy month-day)}
-                              (-> (d/datafy ym)
-                                  (update :year merge
-                                          {:year/week (.get ld IsoFields/WEEK_OF_WEEK_BASED_YEAR)
-                                           :year/day  (.getDayOfYear ld)})
-
-
-                                     ))]
+          ret  (as-> (d/datafy ym) $ret
+                     (update $ret
+                             :year merge
+                             {:year/week (.get ld IsoFields/WEEK_OF_WEEK_BASED_YEAR)
+                              :year/day  (.getDayOfYear ld)})
+                     (merge-with merge $ret
+                                 {:week-day (d/datafy weekday)
+                                  :month    (d/datafy month-day)}))]
       (with-meta ret
         {`jp/shift+ (fn [this n unit safe?] (internal/plus :date (undatafy this) unit n safe?))
          `jp/shift- (fn [this n unit safe?] (internal/minus :date (undatafy this) unit n safe?))

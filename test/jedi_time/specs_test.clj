@@ -19,4 +19,19 @@
             datafied (d/datafy now)
             spec-key (keyword "jedi-time.datafied.specs.core" (name t))]
         (is (s/valid? spec-key datafied)))))
+
+  (testing "minimal values"
+    (let [minimal-inst {:epoch/second 1581866760
+                        :second/nano 428017000
+                        :zone {:zone/id "Europe/Athens"}}]
+      (is (s/valid? ::specs/instant minimal-inst))
+      (is (s/valid? ::specs/instant (dissoc minimal-inst :zone))))
+
+    (let [minimal-year {:year/value 2020}]
+      (is (s/valid? ::specs/year minimal-year)))
+
+    (let [minimal-month {:month/value 6}]
+      (is (s/valid? ::specs/month minimal-month)))
+
+    )
   )

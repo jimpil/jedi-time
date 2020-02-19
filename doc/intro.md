@@ -7,55 +7,51 @@ We will look at each `java.time` class separately, showing its data representati
 
 
 ### Year
-It datafies to the following map, which doesn't navigate to anything other than the top-level key (`:year`).
+It datafies to the following map, which doesn't navigate to anything other than its own data.
 
 ```clj
 (d/datafy (Year/of 2020))
 =>
-{:year {:value 2020 
-        :length 366
-        :leap? true}}
+#:year{:value 2020 
+       :leap? true 
+       :length 366}
 ```
 
 ### Month 
-It datafies to the following map, which doesn't navigate to anything other than the top-level key (`:month`).
+It datafies to the following map, which doesn't navigate to anything other than its data.
 
 ```clj
 (d/datafy (Month/of 2))
 =>
-{:month {:name "FEBRUARY" 
-         :value 2 
-         ;; length of a plain month isn't necessarily correct 
-         :length 28}} 
+#:month{:name "FEBRUARY" 
+        :value 2 
+        :length 28} ;; length of a plain month isn't necessarily correct 
 ```
 
 ### DayOfWeek 
-Similarly to `Month`, this class datafies to the following map and doesn't navigate to anything 
-other than the top-level key (`:week-day`).
+Similarly to `Month`, this class datafies to the following map and doesn't navigate to anything other than its own data.
 
 ```clj
 (d/datafy (DayOfWeek/of 2))
 => 
-{:week-day {:name "TUESDAY" 
-            :value 2}}
-
+#:day{:name "TUESDAY"
+      :value 2}
 ```
 
 ### YearMonth
-Datafies the `Year`/`Month` objects and merges them, while correcting the `[:month :length]`.
+The combination of datafying the `Year`/`Month` objects under `:year`/`:month` keys respectively. 
 
 ```clj
 (d/datafy (YearMonth/of 2020 2))
 =>
-{:year {:length 366 
-        :leap? true 
-        :value 2020}
- :month {:name "FEBRUARY" 
-         :value 2 
-         ;; length of month is correct here
-         :length 29}} 
+{:month #:month{:name "FEBRUARY" 
+                :value 2 
+                :length 29} ;; length of month is correct here
+ :year #:year{:value 2020 
+              :leap? true 
+              :length 366}} 
 ```
-The returned map can be navigated to its top-level keys (returning `Year` and `Month` respectively), 
+The returned map can be navigated to its top-level keys (returning `Year` or `Month`), 
 but also to the following extra keys: 
 
 - :format - returns a String per `v` (the formatter pattern - defaults to `"yyyy-MM"` as there is no ISO variant for this)
@@ -96,21 +92,21 @@ Datafies the `YearMonth` and `DayOfWeek` objects, and merges the results,
 while adding `:year/day`, and `:year/week`
 
 ```clj
-(d/datafy (LocalDate/now)) ;; "2020-02-16"
+(d/datafy (LocalDate/now))
 => 
-{:week-day {:name "SUNDAY" 
-            :value 7}
- :month {:name "FEBRUARY"
-         :value 2 
-         :length 29}
- :year {:value 2020 
-        :leap? true 
-        :length 366}
- :month-day {:value 16}
- :year/week 7
- :year/day 47}
+{:week-day #:day{:name "WEDNESDAY" 
+                 :value 3}
+ :month #:month{:name "FEBRUARY"
+                :value 2 
+                :length 29
+                :day 19}
+ :year #:year{:value 2020
+              :leap? true
+              :length 366
+              :week 8
+              :day 50}}
 ```
-The returned map can be navigated to its top-level keys (returning objects or numbers),
+The returned map can be navigated to its top-level keys (returning objects),
  but also to the following extra keys:
  
 - :format - returns a String per `v` (the formatter pattern - defaults to `ISO_LOCAL_DATE`)
@@ -128,27 +124,27 @@ The returned map can be navigated to its top-level keys (returning objects or nu
 Datafies the `LocalDate` and `LocalTime` objects and merges them.
 
 ```clj
-(d/datafy (LocalDateTime/now)) ;; "2020-02-16T14:57:37.770679"
+(d/datafy (LocalDateTime/now))
 => 
-{:month {:name "FEBRUARY" 
-         :value 2
-         :length 29}
- :year {:value 2020 
-        :leap? true 
-        :length 366}
- :week-day {:name "SUNDAY" 
-            :value 7}
- :month-day {:value 16}
- :hour/minute 57
- :minute/second 37
- :second/micro 770679
- :second/nano 770679000
- :second/milli 770
- :day/hour 14
- :year/day 47
- :year/week 7}
+{:local-date {:week-day #:day{:name "WEDNESDAY" 
+                              :value 3}
+              :month #:month{:name "FEBRUARY" 
+                             :value 2 
+                             :length 29 
+                             :day 19}
+              :year #:year{:value 2020 
+                           :leap? true 
+                           :length 366 
+                           :week 8 
+                           :day 50}}
+ :local-time {:day/hour 16
+              :hour/minute 48
+              :minute/second 24
+              :second/nano 157027000
+              :second/milli 157
+              :second/micro 157027}}
 ```
-The returned map can be navigated to its top-level keys, 
+The returned map can be navigated to its top-level keys (returning objects), 
 but also to the following extra keys: 
 
 - :format - returns a String per `v` (the formatter pattern - defaults to `ISO_LOCAL_DATE_TIME`)
@@ -165,11 +161,11 @@ For example, all the `:julian/*` keys from `LocalDate`, or the individual time f
 Constructs a `LocalDateTime` from this, datafies it (see above), and merges offset information (see below).
 
 ```clj
-{:offset {:id "Z" 
-          :seconds 0 
-          :hours 0.0}}
+{:offset #:offset{:id "Z" 
+                  :seconds 0 
+                  :hours 0.0}}
 ```
-The returned map can be navigated to its top-level keys, 
+The returned map can be navigated to its top-level keys (returning objects), 
 but also to the following extra keys:
 
 - :format - returns a String per `v` (the formatter pattern - defaults to `ISO_OFFSET_DATE_TIME`)
@@ -186,10 +182,10 @@ For example, all the `:julian/*` keys from `LocalDate`, or the individual time f
 Same as `OffsetDateTime` (see above), this time adding a `:zone` key too (see below).
 
 ```clj
-{:zone {:id "Europe/London"}}
+{:zone #:zone{:id "Europe/London"}}
 ```
 
-The returned map can be navigated to its top-level keys, 
+The returned map can be navigated to its top-level keys (returning objects), 
 but also to the following extra keys:
 
 - :format - returns a String per `v` (the formatter pattern - defaults to `ISO_ZONED_DATE_TIME`)
