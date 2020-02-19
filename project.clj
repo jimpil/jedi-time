@@ -1,4 +1,4 @@
-(defproject jedi-time "0.2.1-SNAPSHOT"
+(defproject jedi-time "0.2.1"
   :description "Datafiable/Navigable protocol extensions for the core java.time objects."
   :url "https://github.com/jimpil/jedi-time"
   :author "Dimitrios Piliouras <jimpil1985@gmail.com>"
