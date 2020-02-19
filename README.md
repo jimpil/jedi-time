@@ -100,7 +100,8 @@ Ok, so you have a `java.time` object - what can you do with it? The obvious thin
 (class *1)
 => clojure.lang.PersistentArrayMap
 ```
-This is the (richest possible) object represented as data. 
+This is the (richest possible) object represented as data. An `OffsetDateTime` will datafy to the same map, minus the `:zone` key,
+and a `LocalDateTime` minus the `:offset` key too. Hopefully you can see where this is going. :) 
 This alone, opens up a world of opportunities, but wait there is more...
 
 Given the above data representation, we can navigate to a bunch of things 
