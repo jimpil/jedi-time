@@ -29,48 +29,55 @@
   (if-let [epoch-second (:epoch/second x)] ;; fast path
     (Instant/ofEpochSecond epoch-second (:second/nano x))
 
-    (let [y?  (contains? x :year)
-          m?  (contains? x :month)
-          dh? (contains? x :day/hour)
-          ym? (and y? m?)]
+    (let [ld (contains? x :local-date)
+          lt (contains? x :local-time)
+          ;y?  (contains? x :year)
+          ;m?  (contains? x :month)
+          ;dh? (some? (get-in  x [:local-time :hour]))
+          ;ym? (and y? m?)
+          ]
 
-      (if-let [zone-id (and ym? dh? (get-in x [:zone :id]))]
+      (if-let [zone-id (and ld lt (get-in x [:zone :zone/id]))]
         (let [zone (ZoneId/of zone-id)
               zone-rules (.getRules zone)
               ldt (internal/local-datetime-of x)
               offset (.getOffset zone-rules ldt)]
           (ZonedDateTime/ofStrict ldt offset zone))
 
-        (if-let [offset-id (and ym? dh? (get-in x [:offset :id]))]
+        (if-let [offset-id (and ld lt (get-in x [:offset :offset/id]))]
           (OffsetDateTime/of
             (internal/local-datetime-of x)
             (ZoneOffset/of ^String offset-id))
 
-          (if (and ym? dh?)
+          (if (and ld lt)
             (internal/local-datetime-of x)
 
-            (if (and ym? (contains? x :month-day))
+            (if (and (contains? x :month)
+                     (contains? x :year)
+                     (contains? x :week-day))
               (internal/local-date-of x)
 
-              (if dh?
+              (if (contains? x :second/nano)
                 (internal/local-time-of x)
 
-                (if-let [i (get-in x [:week-day :value])]
+                (if-let [i (get x :day/value)]
                   (DayOfWeek/of i)
 
-                  (if ym?
+                  (if (and (contains? x :year)
+                           (contains? x :month))
                     (internal/year-month-of x)
 
-                    (if-let [yv (and (not m?) (get-in x [:year :value]))]
+                    (if-let [yv (and (not (contains? x :month))
+                                     (get x :year/value))]
                       (Year/of yv)
 
-                      (if-let [mv (get-in x [:month :value])]
+                      (if-let [mv (get x :month/value)]
                         (Month/of mv)
 
-                        (if-let [zid (get-in x [:zone :id])]
+                        (if-let [zid (get x :zone/id)]
                           (ZoneId/of zid)
 
-                          (when-let [^String off-id (get-in x [:offset :id])]
+                          (when-let [^String off-id (get x :offset/id)]
                             (ZoneOffset/of off-id)))))))))))))))
 
 (defn- format*
@@ -101,55 +108,63 @@
 
   Year
   (datafy [y]
-    (-> {:year {:value  (.getValue y)
-                :leap?  (.isLeap y)
-                :length (.length y)}}
+    (-> {:year/value  (.getValue y)
+         :year/leap?  (.isLeap y)
+         :year/length (.length y)}
         (with-meta
           {`jp/before? (fn [this v] (.isBefore ^Year (undatafy this) (undatafy v)))
            `jp/after?  (fn [this v] (.isAfter  ^Year (undatafy this) (undatafy v)))
 
            `p/nav (fn [datafied k v]
-                    (when (= k :year)
+                    (if (= k :year)
                       (undatafy
-                        (internal/dissoc-optional :year
-                          {:year (or v (get datafied :year))}))))})))
+                        (internal/dissoc-optional (or v datafied) :year))
+                      (get datafied k)))})))
 
   Month
   (datafy [m]
-    (-> {:month {:name   (.name m)
-                 :value  (.getValue m)
-                 ;; not accounting for leap-year precision on plain Month objects
-                 :length (.length m false)}}
+    (-> {:month/name   (.name m)
+         :month/value  (.getValue m)
+         ;; not accounting for leap-year precision on plain Month objects
+         :month/length (.length m false)}
         (with-meta
           {`p/nav (fn [datafied k v]
-                    (when (= k :month)
+                    (if (= k :month)
                       (undatafy
-                        (internal/dissoc-optional :month
-                          {:month (or v (get datafied :month))}))))})))
+                        (internal/dissoc-optional (or v datafied) :month))
+                      (get datafied k)))})))
 
   MonthDay
   (datafy [md]
-    (-> {:month-day {:value (.getDayOfMonth md)}}
+    (let [month (.getMonth md)
+          ret (-> (d/datafy month)
+                  (assoc :month/day (.getDayOfMonth md)))]
+      (-> ret
         (with-meta
           {`p/nav
            (fn [datafied k v]
-             (let [^MonthDay md (undatafy (internal/dissoc-optional :month-day datafied))]
+             (let [^MonthDay md (undatafy
+                                  (internal/dissoc-optional (or v datafied) :month-day))]
                (case k
                  :format (format* v "MM-dd" md)
-                 :month-day (undatafy (merge datafied {:month-day v}))
-                 nil)))})))
+                 :month-day md
+                 :month/day (or v (.getDayOfMonth md))
+                 :month (or (some-> v undatafy) (.getMonth md))
+                 nil)))}))))
 
   DayOfWeek
   (datafy [d]
-    (-> {:week-day {:name  (.name d)
-                    :value (.getValue d)}}
+    (-> {:day/name  (.name d)
+         :day/value (.getValue d)}
         (with-meta
           {`p/nav
            (fn [datafied k v]
-             (when (= k :week-day)
-               (undatafy
-                 (internal/dissoc-optional :week-day
-                   {:week-day (or v (get datafied :week-day))}))))})))
+             (let [^DayOfWeek wd (undatafy (internal/dissoc-optional (or v datafied) :week-day))]
+               (case k
+                 :week-day wd
+                 :day/name  (or v (.name wd))
+                 :day/value (or v (.getValue wd))
+                 nil)))})))
 
   YearMonth
   (datafy [ym]
@@ -157,8 +172,9 @@
           year-obj  (Year/of (.getYear ym))
           month (-> (d/datafy month-obj)
                     ;; correct the length here
-                    (assoc-in [:month :length] (.lengthOfMonth ym)))
-          ret (merge month (d/datafy year-obj))]
+                    (assoc :month/length (.lengthOfMonth ym)))
+          ret {:month month
+               :year (d/datafy year-obj)}]
       (with-meta ret
         {`jp/shift+ (fn [this n unit safe?] (internal/plus :date (undatafy this) unit n safe?))
          `jp/shift- (fn [this n unit safe?] (internal/minus :date (undatafy this) unit n safe?))
@@ -168,10 +184,14 @@
 
          `p/nav
          (fn [datafied k v]
-           (let [^YearMonth ym (undatafy (internal/dissoc-optional :year-month datafied))]
+           (let [^YearMonth ym (undatafy (internal/dissoc-optional datafied :year-month))]
              (case k
                :format         (format* v "yyyy-MM" ym)
                :year-month     ym
+               :year           (Year/of  (or (undatafy v)
+                                             (.getYear ym)))
+               :month          (Month/of (or (undatafy v)
+                                             (.getValue (.getMonth ym))))
                :instant        (-> datafied (d/nav :local-datetime v) d/datafy (d/nav :instant v))
                :local-date     (.atDay ym 1)
                :local-datetime (let [^LocalDate ld (d/nav datafied :local-date v)]
@@ -195,7 +215,7 @@
   LocalTime
   (datafy [lt]
     (let [second (.getSecond lt)
-          nanos (.getNano lt) ;; nano of second
+          nanos  (.getNano lt) ;; nano of second
           ret {:day/hour    (.getHour lt)
                :hour/minute (.getMinute lt)
                :minute/second second
@@ -211,11 +231,12 @@
 
          ;; datafied LocalTime can't navigate to anything other than its own data
          `p/nav (fn [datafied k v]
-                  (let [^LocalTime lt (undatafy (internal/dissoc-optional :local-time datafied))]
+                  (let [^LocalTime lt (undatafy (internal/dissoc-optional datafied :local-time))]
                     (case k
                       :local-time lt
                       :format (format* v DateTimeFormatter/ISO_LOCAL_TIME lt)
-                      (when (contains? datafied k) v))))})))
+                      (when (contains? datafied k)
+                        (or v (get datafied k))))))})))
 
   LocalDate
   (datafy [ld]
@@ -224,11 +245,16 @@
           year    (.getYear ld)
           month-day (MonthDay/of month (.getDayOfMonth ld))
           ym      (YearMonth/of year month)
-          ret     (merge (d/datafy weekday)
-                         (d/datafy ym)
-                         (d/datafy month-day)
-                         {:year/week (.get ld IsoFields/WEEK_OF_WEEK_BASED_YEAR)
-                          :year/day  (.getDayOfYear ld)})]
+          ret     (merge-with merge
+                              {:week-day (d/datafy weekday)
+                               :month    (d/datafy month-day)}
+                              (-> (d/datafy ym)
+                                  (update :year merge
+                                          {:year/week (.get ld IsoFields/WEEK_OF_WEEK_BASED_YEAR)
+                                           :year/day  (.getDayOfYear ld)})
+
+
+                                     ))]
       (with-meta ret
         {`jp/shift+ (fn [this n unit safe?] (internal/plus :date (undatafy this) unit n safe?))
          `jp/shift- (fn [this n unit safe?] (internal/minus :date (undatafy this) unit n safe?))
@@ -238,7 +264,7 @@
 
          `p/nav
          (fn [datafied k v]
-           (let [^LocalDate ld (undatafy (internal/dissoc-optional :local-date datafied))]
+           (let [^LocalDate ld (undatafy (internal/dissoc-optional datafied :local-date))]
              (case k
                :format (format* v DateTimeFormatter/ISO_LOCAL_DATE ld)
                :local-datetime (.atStartOfDay ld)
@@ -270,8 +296,8 @@
   (datafy [ldt]
     (let [lt  (.toLocalTime ldt)
           ld  (.toLocalDate ldt)
-          ret (merge (d/datafy lt)
-                     (d/datafy ld))]
+          ret {:local-date (d/datafy ld)
+               :local-time (d/datafy lt)}]
       (with-meta ret
         {`jp/shift+ (fn [this n unit safe?] (internal/plus :date (undatafy this) unit n safe?))
          `jp/shift- (fn [this n unit safe?] (internal/minus :date (undatafy this) unit n safe?))
@@ -281,7 +307,7 @@
 
          `p/nav
          (fn [datafied k v]
-           (let [^LocalDateTime ldt (undatafy (internal/dissoc-optional :local-datetime datafied))
+           (let [^LocalDateTime ldt (undatafy (internal/dissoc-optional datafied :local-datetime))
                  lt (.toLocalTime ldt)
                  ld (.toLocalDate ldt)]
              (case k
@@ -292,11 +318,11 @@
                :local-date ld
                :offset (let [^ZoneOffset zoff (if (string? v)
                                                 (ZoneOffset/of ^String v)
-                                                (undatafy {:offset v}))]
+                                                (undatafy v))]
                          (.atOffset ldt zoff))
                :zone (let [^ZoneId zid (if (string? v)
                                          (ZoneId/of v)
-                                         (undatafy {:zone v}))]
+                                         (undatafy v))]
                        (.atZone ldt zid))
                (or
                  (d/nav (d/datafy lt) k v)
@@ -305,18 +331,18 @@
   ZoneOffset
   (datafy [offset]
     (let [off-seconds (.getTotalSeconds offset)]
-      {:offset {:id   (.getId offset)
-                :seconds off-seconds
-                :hours   (with-precision 4
-                           :rounding RoundingMode/HALF_EVEN
-                           (double (/ off-seconds 60M)))}}))
+      {:offset/id     (.getId offset)
+       :offset/seconds off-seconds
+       :offset/hours   (with-precision 4
+                         :rounding RoundingMode/HALF_EVEN
+                         (double (/ off-seconds 60M)))}))
 
   OffsetDateTime
   (datafy [odt]
     (let [ldt    (.toLocalDateTime odt)
           datafied-ldt (d/datafy ldt)
           offset (.getOffset odt)
-          ret    (merge datafied-ldt (d/datafy offset))]
+          ret    (assoc datafied-ldt :offset (d/datafy offset))]
       (with-meta ret
         {`jp/shift+ (fn [this n unit safe?] (internal/plus :date (undatafy this) unit n safe?))
          `jp/shift- (fn [this n unit safe?] (internal/minus :date (undatafy this) unit n safe?))
@@ -326,7 +352,7 @@
 
          `p/nav
          (fn [datafied k v]
-           (let [^OffsetDateTime odt (undatafy (internal/dissoc-optional :offset-datetime datafied))]
+           (let [^OffsetDateTime odt (undatafy (internal/dissoc-optional datafied :offset-datetime))]
              (case k
                :format (format* v DateTimeFormatter/ISO_OFFSET_DATE_TIME odt)
                :instant (.toInstant odt)
@@ -336,7 +362,7 @@
                          (string? v) (ZoneOffset/of ^String v)
                          (nil? v) (d/nav datafied k (get datafied :offset))
                          (map? v) (let [{:keys [same]} v
-                                        offset (undatafy {:offset v})]
+                                        offset (undatafy v)]
                                     (case (or same (get-in datafied [:offset :same]))
                                       :local   (.withOffsetSameLocal odt offset)
                                       :instant (.withOffsetSameInstant odt offset)
@@ -348,14 +374,13 @@
 
   ZoneId
   (datafy [zone]
-    {:zone {:id (.getId zone)}})
+    {:zone/id (.getId zone)})
 
   ZonedDateTime
   (datafy [zdt]
     (let [odt  (.toOffsetDateTime zdt)
           zone (.getZone zdt)
-          ret  (merge (d/datafy odt)
-                      (d/datafy zone))]
+          ret  (assoc (d/datafy odt) :zone (d/datafy zone))]
       (with-meta ret
         {`jp/shift+ (fn [this n unit safe?] (internal/plus :date (undatafy this) unit n safe?))
          `jp/shift- (fn [this n unit safe?] (internal/minus :date (undatafy this) unit n safe?))
@@ -366,7 +391,7 @@
 
          `p/nav (fn [datafied k v]
                   ;; don't let the offset interfere with translations - don't need for undatafy anyway
-                  (let [^ZonedDateTime zdt (undatafy (internal/dissoc-optional :zoned-datetime datafied))]
+                  (let [^ZonedDateTime zdt (undatafy (internal/dissoc-optional datafied :zoned-datetime))]
                     (case k
                       :format (format* v DateTimeFormatter/ISO_ZONED_DATE_TIME zdt)
                       :instant (.toInstant zdt)
@@ -376,7 +401,7 @@
                               (string? v) (ZoneId/of v)
                               (nil? v) (d/nav datafied k (get datafied :zone))
                               (map? v) (let [{:keys [same]} v
-                                             ^ZoneId zone (undatafy {:zone v})]
+                                             ^ZoneId zone (undatafy v)]
                                          (case (or same (get-in datafied [:zone :same]))
                                            :local   (.withZoneSameLocal zdt zone)
                                            :instant (.withZoneSameInstant zdt zone)
@@ -410,14 +435,14 @@
 
          `p/nav
          (fn [datafied k v]
-           (let [^Instant inst (undatafy (internal/dissoc-optional :instant datafied))]
+           (let [^Instant inst (undatafy (internal/dissoc-optional datafied :instant))]
              (case k
                :format (format* v DateTimeFormatter/ISO_INSTANT inst)
                :instant inst
                :offset (let [v (or v (get datafied :offset))
                              ^ZoneOffset zo (if (string? v)
                                               (ZoneOffset/of ^String v)
-                                              (undatafy {:offset v}))
+                                              (undatafy v))
                              ldt (LocalDateTime/ofEpochSecond
                                    (.getEpochSecond inst)
                                    (.getNano inst)
@@ -426,7 +451,7 @@
                :zone (let [v (or v (get datafied :zone))
                            ^ZoneId zid (if (string? v)
                                          (ZoneId/of v)
-                                         (undatafy {:zone v}))]
+                                         (undatafy v))]
                        (ZonedDateTime/ofInstant inst zid))
                (get datafied k))))})))
   )

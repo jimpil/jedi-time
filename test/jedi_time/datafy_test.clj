@@ -47,9 +47,9 @@
 
 (deftest undatafy-tests
   (testing "undatafy slow path"
-    (let [month {:month {:name "MARCH"
-                         :value 3
-                         :length 31}}
+    (let [month #:month{:name "MARCH"
+                        :value 3
+                        :length 31}
           dates (map
                   #(-> (jdt/now! {:as %})
                        d/datafy

@@ -114,7 +114,7 @@
           zone (d/nav now-datafied :zone nil)
           ^ZonedDateTime now-athens (-> now
                                         d/datafy
-                                        (d/nav :zone {:id "Europe/Athens"
+                                        (d/nav :zone {:zone/id "Europe/Athens"
                                                       :same :instant}))]
       (is (instance? ZonedDateTime now-athens))
       (is (instance? ZoneId zone))
@@ -129,7 +129,7 @@
           offset (d/nav now-datafied :offset nil)
           ^OffsetDateTime now-plus2 (-> now
                                         d/datafy
-                                        (d/nav :offset {:id "+02:00"
+                                        (d/nav :offset {:offset/id "+02:00"
                                                         :same :instant}))]
       (is (instance? OffsetDateTime now-plus2))
       (is (instance? ZoneOffset offset))

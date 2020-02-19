@@ -29,19 +29,14 @@ In its original conception `jedi-time` used map nesting in order to mirror the h
 This doesn't play very well with `nav`, and so the datafication model is now flatter. Instead of nesting, a composite object
 will contain more than one top-level keys. The simplest example to illustrate this is by comparing a `Year` VS a `Month` VS a `YearMonth`. 
 In the original model (release 0.1.4 only), the latter would have a single `:year` key and a `[:year :month]` path, whereas now there will be
-two top-level keys (`:year` and `:month`), whose combination represents the (datafied) `YearMonth`.
+two top-level keys (`:year` and `:month`), whose combination represents the (datafied) `YearMonth`. Similarly, a datafied `LocalDateTime`
+will contain two top-level keys (`:local-date` and `:local-time`). This facilitates intuitive REBL navigation.
 
-In short, if a top-level key maps directly to a `java.time` object, then it will be a *non-namespaced* keyword pointing to a map 
-(this facilitates REBL navigation). If there isn't a corresponding Java object, the key will *namespaced* pointing to a raw value. 
-It's worth noting that high level objects like `LocalDate` (or even `LocalTime` and `YearMonth`) will be broken down to their constituents parts, 
-so, even for the richest of objects (e.g. `ZonedDateTime`), the resulting map will typically **not** contain more than 6 non-namespaced keys.
- 
 ### nav 
-Navigation through non-namespaced keywords will usually lead you to `java.time` objects (that can be further datafied, navigated and so on). 
-Namespaced keywords will lead you to base values (typically Number or String). It's important to note that navigation through an existing 
-key pays attention not only to the key being navigated (2nd arg), but also to the value (3rd arg). This basically means that navigating 
-to an altered value will return an altered object, and so care needs to be taken when updating (or adding/removing for that matter) keys, 
-as it does affect navigation. 
+Navigation may lead you to `java.time` objects (that can be further datafied, navigated and so on), or base values (typically Number/String)
+It's important to note that navigation through an existing key pays attention not only to the key being navigated (2nd arg), 
+but also to the value (3rd arg). This basically means that navigating to an altered value will return an altered object, 
+and so care needs to be taken when updating (or adding/removing for that matter) keys, as it does affect navigation. 
 
 Finally, `jedi-time` adds some extra semantics for `:format`, `offset`, `:zone` and `:instant` navigation paths (explained later).
  
@@ -79,28 +74,27 @@ Ok, so you have a `java.time` object - what can you do with it? The obvious thin
 
 (d/datafy (jdt/now! {:as :zoned-datetime})) ;; datafy an instance of ZonedDateTime
 => 
-{:year/day 42,               ;; day of year 
- :offset {:id "Z",           ;; ZoneOffset object
-          :seconds 0, 
-          :hours 0.0},
- :zone {:id "Europe/London"} ;; ZoneId object 
- :month {:name "FEBRUARY",   ;; Month object
-         :value 2, 
-         :length 29},
- :year {:value 2020,         ;; Year object
-        :leap? true, 
-        :length 366},
- :minute/second 42,          ;; second of minute 
- :week-day {:name "TUESDAY", ;; DayOfWeek object
-            :value 2},
- :month-day {:value 11},     ;; MonthDay object
- :hour/minute 35,            ;; minute of hour
- :second/nano 701702000,     ;; nano of second 
- :second/milli 701,          ;; milli of second
- :second/micro 701702,       ;; micro of second
- :day/hour 20,               ;; hour of day
- :year/week 7                ;; week of year 
- }           
+{:local-time {:hour 10 
+              :minute 2 
+              :second 52 
+              :second/nano 990782000 
+              :second/milli 990 
+              :second/micro 990782}
+ :local-date {:week-day {:name "WEDNESDAY" 
+                         :value 3}
+              :month {:name "FEBRUARY" 
+                      :value 2
+                      :length 29}
+              :year {:value 2020 
+                     :leap? true 
+                     :length 366}
+              :month-day {:value 19}
+              :year/week 8   ;; week of year
+              :year/day 50}  ;; day of year
+ :offset {:id "Z" 
+          :seconds 0 
+          :hours 0.0}
+ :zone {:id "Europe/London"}}          
 
 (class *1)
 => clojure.lang.PersistentArrayMap

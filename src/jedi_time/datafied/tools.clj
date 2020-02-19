@@ -65,7 +65,7 @@
    An offset can be provided as the 3rd arg, but will only be used
    if needed (i.e. for upgrading to Instant)."
   ([datafied other]
-   (same-instant? datafied other {:id "Z"}))
+   (same-instant? datafied other {:offset/id "Z"}))
   ([datafied other offset]
    (let [this-instant  (with-meta-check
                          (clojure.core.protocols/nav datafied :instant offset))
@@ -86,12 +86,12 @@
         (if di?
           (d/datafy
             (with-meta-check
-              (clojure.core.protocols/nav datafied :offset {:id "Z"})))
+              (clojure.core.protocols/nav datafied :offset {:offset/id "Z"})))
           datafied)
         (if oi?
           (d/datafy
             (with-meta-check
-              (clojure.core.protocols/nav other :offset {:id "Z"})))
+              (clojure.core.protocols/nav other :offset {:offset/id "Z"})))
           other))
       (let [this-date (with-meta-check
                         (clojure.core.protocols/nav datafied :local-date nil))
@@ -106,7 +106,7 @@
   ([datafied zone-id same]
    (d/datafy
      (with-meta-check ;; has to be a fully qualified call
-       (clojure.core.protocols/nav datafied :zone {:id zone-id :same same})))))
+       (clojure.core.protocols/nav datafied :zone {:zone/id zone-id :same same})))))
 
 (defn at-offset
   ""
@@ -115,4 +115,4 @@
   ([datafied offset-id same]
    (d/datafy
      (with-meta-check ;; has to be a fully qualified call
-       (clojure.core.protocols/nav datafied :offset {:id offset-id :same same})))))
+       (clojure.core.protocols/nav datafied :offset {:offset/id offset-id :same same})))))

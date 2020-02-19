@@ -54,23 +54,13 @@
         (.minus t (period-or-duration mode n unit u)))
       (.minus t (period-or-duration mode n unit u)))))
 
-(defn local-datetime-of
-  ^LocalDateTime [x]
-  (LocalDateTime/of
-    ^int (get-in x [:year :value])
-    ^int (get-in x [:month :value])
-    ^int (get-in x [:month-day :value])
-    ^int (get x :day/hour)
-    ^int (get x :hour/minute)
-    ^int (get x :minute/second)
-    ^int (get x :second/nano)))
-
 (defn local-date-of
   ^LocalDate [x]
-  (LocalDate/of
-    ^int (get-in x [:year :value])
-    ^int (get-in x [:month :value])
-    ^int (get-in x [:month-day :value])))
+  (let [month (:month x)]
+    (LocalDate/of
+      ^int (get-in x [:year :year/value])
+      ^int (get month :month/value)
+      ^int (get month :month/day))))
 
 (defn local-time-of
   ^LocalTime [x]
@@ -80,28 +70,44 @@
     ^int (get x :minute/second)
     ^int (get x :second/nano)))
 
+(defn local-datetime-of
+  ^LocalDateTime [x]
+  (let [{:keys [local-date local-time]} x
+        month (:month local-date)]
+    (LocalDateTime/of
+      ^int (get-in local-date [:year :year/value])
+      ^int (:month/value month)
+      ^int (:month/day month)
+      ^int (:day/hour local-time)
+      ^int (:hour/minute local-time)
+      ^int (:minute/second local-time)
+      ^int (:second/nano local-time))))
+
 (defn year-month-of
   ^YearMonth [x]
   (YearMonth/of
-    ^int (get-in x [:year :value])
-    ^int (get-in x [:month :value])))
+    ^int (get-in x [:year :year/value])
+    ^int (get-in x [:month :month/value])))
 
 (defn dissoc-optional
-  [k m]
+  [m k]
   (case k
-    :month (update m k dissoc :length :name)
-    :year  (update m k dissoc :length :leap?)
-    :week-day (update m k dissoc :name)
-    :year-month (->> m
-                    (dissoc-optional :month)
-                    (dissoc-optional :year))
-    :local-time (dissoc m :second/milli :second/micro)
-    :local-date (dissoc m :year/week :year/day)
-    :local-datetime (->> m
-                        (dissoc-optional :local-time)
-                        (dissoc-optional :local-date))
-    :offset-datetime (update (dissoc-optional :local-datetime m)
-                             dissoc :seconds :hours)
-    :zoned-datetime (dissoc (dissoc-optional :local-datetime m) :offset)
+    :month (dissoc m :month/length :month/name)
+    :year  (dissoc m :year/length :year/leap?)
+    :week-day (dissoc m :day/name)
+    :year-month (-> m
+                    (update :year dissoc-optional :year)
+                    (update :month dissoc-optional :month))
+    :local-time (update m :local-time dissoc :second/milli :second/micro)
+    :local-date (update m :local-date dissoc :year/week :year/day)
+    :local-datetime (-> m
+                        (update :local-time dissoc-optional :local-time)
+                        (update :local-date dissoc-optional :local-date))
+    :offset-datetime (-> m
+                         (dissoc-optional :local-datetime)
+                         (update :offset dissoc :offset/seconds :offset/hours))
+    :zoned-datetime (-> m
+                        (dissoc-optional :local-datetime)
+                        (dissoc :offset))
     :instant  (dissoc m :epoch/milli :epoch/micro :epoch/nano)
     m))
