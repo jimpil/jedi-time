@@ -109,4 +109,4 @@
     :zoned-datetime (-> m
                         (dissoc-optional :local-datetime)
                         (dissoc :offset))
-    :instant  (dissoc m :epoch/milli :epoch/micro :epoch/nano :zone :offset :format)))
+    :instant  (dissoc m :epoch/milli :epoch/micro :epoch/nano :zone :offset)))
